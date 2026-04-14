@@ -6,7 +6,7 @@
 // SETUP: Replace the two lines below with your Supabase credentials.
 // Get them from: supabase.com → your project → Settings → API
 //
-const SUPABASE_URL = "https://vavpdxzxvvzlvlmvolcf.supabase.co/";
+const SUPABASE_URL = "https://vavpdxzxvvzlvlmvolcf.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_7NtIMNOWuMcomZD-yiCSGA_4nXh9bk8";
 //
 // ============================================================
