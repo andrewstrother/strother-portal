@@ -9,7 +9,9 @@ const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN;
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
 
 // ── Supabase REST client ──
 async function sb(path, options = {}) {
@@ -51,7 +53,7 @@ async function updateIdea(ideaId, patch) {
 }
 
 // ── Shared styles ──
-const input = {
+const inputStyle = {
   width: "100%", border: "1px solid #e2e2e0", borderRadius: 3, padding: "9px 12px",
   fontSize: 13, fontFamily: "'Jost', sans-serif", color: "#1a1a1a", background: "#fff",
   outline: "none", boxSizing: "border-box",
@@ -73,6 +75,89 @@ function Badge({ status }) {
   return <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", background: bg, border: `1px solid ${border}`, color, padding: "3px 10px", borderRadius: 2 }}>{label}</span>;
 }
 
+// ── Calendar date picker ──
+function DatePickerInput({ value, onChange, placeholder = "Select a date" }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  // Parse stored YYYY-MM-DD string to Date object
+  const selected = value ? new Date(value + "T00:00:00") : undefined;
+
+  // Format for display
+  const displayValue = selected
+    ? selected.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : "";
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleSelect = (date) => {
+    if (!date) return;
+    // Store as YYYY-MM-DD
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    onChange(`${yyyy}-${mm}-${dd}`);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          ...inputStyle,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          userSelect: "none",
+          color: displayValue ? "#1a1a1a" : "#bbb",
+        }}
+      >
+        <span>{displayValue || placeholder}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </div>
+      {open && (
+        <div style={{
+          position: "absolute",
+          top: "calc(100% + 6px)",
+          left: 0,
+          zIndex: 100,
+          background: "#fff",
+          border: "1px solid #e2e2e0",
+          borderRadius: 6,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.10)",
+          padding: "8px",
+        }}>
+          <style>{`
+            .rdp { --rdp-accent-color: #1a1a1a; --rdp-background-color: #f5f5f3; font-family: 'Jost', sans-serif; margin: 0; }
+            .rdp-day_selected, .rdp-day_selected:hover { background-color: #1a1a1a; color: #fff; border-radius: 4px; }
+            .rdp-day:hover:not(.rdp-day_selected) { background-color: #f5f5f3; border-radius: 4px; }
+            .rdp-caption_label { font-family: 'Cormorant Garamond', serif; font-weight: 400; font-size: 17px; letter-spacing: 0.5px; }
+            .rdp-head_cell { font-family: 'Jost', sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: #bbb; }
+            .rdp-button:focus-visible { outline: 2px solid #1a1a1a; outline-offset: 2px; }
+            .rdp-nav_button { border-radius: 3px; }
+          `}</style>
+          <DayPicker
+            mode="single"
+            selected={selected}
+            onSelect={handleSelect}
+            defaultMonth={selected || new Date()}
+            showOutsideDays
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── PIN Gate — shown as a modal overlay ──
 function PinGate({ onUnlock, onCancel }) {
   const [pin, setPin] = useState(""), [err, setErr] = useState(false);
@@ -89,7 +174,7 @@ function PinGate({ onUnlock, onCancel }) {
           type="password" placeholder="Enter PIN" value={pin} autoFocus
           onChange={e => setPin(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") attempt(); if (e.key === "Escape") onCancel(); }}
-          style={{ ...input, textAlign: "center", fontSize: 18, letterSpacing: 6, marginBottom: 10, border: err ? "1px solid #c0392b" : "1px solid #e2e2e0" }}
+          style={{ ...inputStyle, textAlign: "center", fontSize: 18, letterSpacing: 6, marginBottom: 10, border: err ? "1px solid #c0392b" : "1px solid #e2e2e0" }}
         />
         {err && <div style={{ fontSize: 11, color: "#c0392b", marginBottom: 8 }}>Incorrect PIN — try again</div>}
         <button onClick={attempt} style={{ ...btn, width: "100%", padding: "11px 0", marginBottom: 10 }}>Enter</button>
@@ -279,11 +364,11 @@ export default function App() {
               <div style={{ height: 1, background: "#e2e2e0", marginBottom: 32 }} />
               <div style={{ marginBottom: 18 }}>
                 <label style={lbl}>Client Name</label>
-                <input style={input} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
+                <input style={inputStyle} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
               </div>
               <div style={{ marginBottom: 24 }}>
                 <label style={lbl}>Retainer Since</label>
-                <input type="date" style={input} value={newClientForm.since} onChange={e => setNewClientForm({ ...newClientForm, since: e.target.value })} />
+                <DatePickerInput value={newClientForm.since} onChange={val => setNewClientForm({ ...newClientForm, since: val })} placeholder="Select start date" />
               </div>
               <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
                 New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
@@ -348,7 +433,7 @@ export default function App() {
                               </div>
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 400, color: "#1a1a1a" }}>{item.description}</div>
-                                <div style={{ fontSize: 11, color: "#bbb", marginTop: 3, fontWeight: 300 }}>{item.date}</div>
+                                <div style={{ fontSize: 11, color: "#bbb", marginTop: 3, fontWeight: 300 }}>{item.date ? new Date(item.date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}</div>
                               </div>
                               <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", border: "1px solid #1a1a1a", padding: "4px 11px", borderRadius: 2, flexShrink: 0 }}>
                                 {item.credits} {item.credits === 1 ? "credit" : "credits"}
@@ -377,7 +462,7 @@ export default function App() {
                             <textarea rows={2} placeholder="Leave a note for Andrew…"
                               value={ideaNote[idea.id] ?? (idea.client_note || "")}
                               onChange={e => setIdeaNote(n => ({ ...n, [idea.id]: e.target.value }))}
-                              style={{ ...input, resize: "vertical", lineHeight: 1.5 }} />
+                              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
                           </div>
                           {idea.status === "pending" ? (
                             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -417,21 +502,21 @@ export default function App() {
                     <div style={{ maxWidth: 480 }}>
                       <div style={{ marginBottom: 18 }}>
                         <label style={lbl}>Shoot Description</label>
-                        <input style={input} placeholder="e.g. Product launch shoot — studio" value={logForm.description} onChange={e => setLogForm({ ...logForm, description: e.target.value })} />
+                        <input style={inputStyle} placeholder="e.g. Product launch shoot — studio" value={logForm.description} onChange={e => setLogForm({ ...logForm, description: e.target.value })} />
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
                         <div>
                           <label style={lbl}>Date</label>
-                          <input type="date" style={input} value={logForm.date} onChange={e => setLogForm({ ...logForm, date: e.target.value })} />
+                          <DatePickerInput value={logForm.date} onChange={val => setLogForm({ ...logForm, date: val })} placeholder="Select shoot date" />
                         </div>
                         <div>
                           <label style={lbl}>Credits Used</label>
-                          <input type="number" min="1" max="12" style={input} value={logForm.credits} onChange={e => setLogForm({ ...logForm, credits: Number(e.target.value) })} />
+                          <input type="number" min="1" max="12" style={inputStyle} value={logForm.credits} onChange={e => setLogForm({ ...logForm, credits: Number(e.target.value) })} />
                         </div>
                       </div>
                       <div style={{ marginBottom: 24 }}>
                         <label style={lbl}>Month</label>
-                        <select style={input} value={logForm.month} onChange={e => setLogForm({ ...logForm, month: e.target.value })}>
+                        <select style={inputStyle} value={logForm.month} onChange={e => setLogForm({ ...logForm, month: e.target.value })}>
                           {MONTHS.map(m => <option key={m}>{m}</option>)}
                         </select>
                       </div>
@@ -452,7 +537,7 @@ export default function App() {
                       <label style={lbl}>Adjust Amount</label>
                       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
                         <button onClick={() => setCreditAdjust(v => v - 1)} style={{ width: 36, height: 36, border: "1px solid #e2e2e0", borderRadius: 3, background: "#fff", fontSize: 18, cursor: "pointer", color: "#555" }}>−</button>
-                        <input type="number" style={{ ...input, textAlign: "center", width: 80 }} value={creditAdjust} onChange={e => setCreditAdjust(Number(e.target.value))} />
+                        <input type="number" style={{ ...inputStyle, textAlign: "center", width: 80 }} value={creditAdjust} onChange={e => setCreditAdjust(Number(e.target.value))} />
                         <button onClick={() => setCreditAdjust(v => v + 1)} style={{ width: 36, height: 36, border: "1px solid #e2e2e0", borderRadius: 3, background: "#fff", fontSize: 18, cursor: "pointer", color: "#555" }}>+</button>
                       </div>
                       <div style={{ fontSize: 11, color: "#aaa", marginBottom: 16 }}>Positive = add · Negative = remove</div>
@@ -471,11 +556,11 @@ export default function App() {
                         <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 16 }}>Post New Idea</div>
                         <div style={{ marginBottom: 14 }}>
                           <label style={lbl}>Title</label>
-                          <input style={input} placeholder="e.g. Behind-the-scenes Reels series" value={ideaForm.title} onChange={e => setIdeaForm({ ...ideaForm, title: e.target.value })} />
+                          <input style={inputStyle} placeholder="e.g. Behind-the-scenes Reels series" value={ideaForm.title} onChange={e => setIdeaForm({ ...ideaForm, title: e.target.value })} />
                         </div>
                         <div style={{ marginBottom: 18 }}>
                           <label style={lbl}>Details (optional)</label>
-                          <textarea rows={3} style={{ ...input, resize: "vertical", lineHeight: 1.5 }} placeholder="Describe the concept, platform, timing, etc." value={ideaForm.body} onChange={e => setIdeaForm({ ...ideaForm, body: e.target.value })} />
+                          <textarea rows={3} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} placeholder="Describe the concept, platform, timing, etc." value={ideaForm.body} onChange={e => setIdeaForm({ ...ideaForm, body: e.target.value })} />
                         </div>
                         <button onClick={handleAddIdea} style={btn}>Post to Client</button>
                       </div>
@@ -503,11 +588,11 @@ export default function App() {
                     <div style={{ maxWidth: 400 }}>
                       <div style={{ marginBottom: 18 }}>
                         <label style={lbl}>Client Name</label>
-                        <input style={input} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
+                        <input style={inputStyle} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
                       </div>
                       <div style={{ marginBottom: 24 }}>
                         <label style={lbl}>Retainer Since</label>
-                        <input type="date" style={input} value={newClientForm.since} onChange={e => setNewClientForm({ ...newClientForm, since: e.target.value })} />
+                        <DatePickerInput value={newClientForm.since} onChange={val => setNewClientForm({ ...newClientForm, since: val })} placeholder="Select start date" />
                       </div>
                       <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
                         New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
