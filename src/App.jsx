@@ -33,9 +33,13 @@ async function sb(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+function generateSlug(name) {
+  return name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
+}
+
 async function getClients() { return sb("clients?select=*&order=name.asc"); }
-async function addClient(name, since, email, phone) {
-  return sb("clients", { method: "POST", prefer: "return=representation", body: JSON.stringify({ name, since, email, phone, credits: 4 }) });
+async function addClient(name, since, email, phone, slug) {
+  return sb("clients", { method: "POST", prefer: "return=representation", body: JSON.stringify({ name, since, email, phone, credits: 4, slug }) });
 }
 async function updateClient(clientId, patch) {
   return sb(`clients?id=eq.${clientId}`, { method: "PATCH", body: JSON.stringify(patch) });
@@ -208,8 +212,8 @@ export default function App() {
 
   const [logForm, setLogForm]             = useState({ description: "", credits: 1, date: "", galleryUrl: "" });
   const [creditAdjust, setCreditAdjust]   = useState(0);
-  const [newClientForm, setNewClientForm] = useState({ name: "", since: "", email: "", phone: "" });
-  const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "" });
+  const [newClientForm, setNewClientForm] = useState({ name: "", since: "", email: "", phone: "", slug: "" });
+  const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "", slug: "" });
   const [deleteConfirm, setDeleteConfirm]   = useState(false);
   const [ideaForm, setIdeaForm]           = useState({ title: "", body: "" });
   const [ideaNote, setIdeaNote]           = useState({});
@@ -239,7 +243,7 @@ export default function App() {
     if (!selected) return;
     getShoots(selected.id).then(d => setShoots(d || [])).catch(() => setShoots([]));
     getIdeas(selected.id).then(d => setIdeas(d || [])).catch(() => setIdeas([]));
-    setEditForm({ name: selected.name || "", since: selected.since || "", email: selected.email || "", phone: selected.phone || "" });
+    setEditForm({ name: selected.name || "", since: selected.since || "", email: selected.email || "", phone: selected.phone || "", slug: selected.slug || "" });
     setDeleteConfirm(false);
   }, [selected?.id]);
 
@@ -270,16 +274,16 @@ export default function App() {
   const handleAddClient = async () => {
     if (!newClientForm.name || !newClientForm.since) return;
     try {
-      await addClient(newClientForm.name, newClientForm.since, newClientForm.email, newClientForm.phone);
+      await addClient(newClientForm.name, newClientForm.since, newClientForm.email, newClientForm.phone, newClientForm.slug);
       await loadClients();
-      setNewClientForm({ name: "", since: "", email: "", phone: "" });
+      setNewClientForm({ name: "", since: "", email: "", phone: "", slug: "" });
       showToast("Client added");
     } catch (e) { showToast("Error: " + e.message); }
   };
 
   const handleEditClient = async () => {
     try {
-      await updateClient(selected.id, { name: editForm.name, since: editForm.since, email: editForm.email, phone: editForm.phone });
+      await updateClient(selected.id, { name: editForm.name, since: editForm.since, email: editForm.email, phone: editForm.phone, slug: editForm.slug });
       await loadClients();
       showToast("Client updated");
     } catch (e) { showToast("Error: " + e.message); }
@@ -416,7 +420,11 @@ export default function App() {
               <div style={{ height: 1, background: "#e2e2e0", marginBottom: 32 }} />
               <div style={{ marginBottom: 18 }}>
                 <label style={lbl}>Client Name</label>
-                <input style={inputStyle} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
+                <input style={inputStyle} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value, slug: generateSlug(e.target.value) })} />
+              </div>
+              <div style={{ marginBottom: 18 }}>
+                <label style={lbl}>Portal URL Slug</label>
+                <input style={inputStyle} placeholder="acme-corp" value={newClientForm.slug} onChange={e => setNewClientForm({ ...newClientForm, slug: e.target.value })} />
               </div>
               <div style={{ marginBottom: 24 }}>
                 <label style={lbl}>Retainer Since</label>
@@ -658,6 +666,15 @@ export default function App() {
                         <input style={inputStyle} value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
                       </div>
                       <div style={{ marginBottom: 18 }}>
+                        <label style={lbl}>Portal URL Slug</label>
+                        <input style={inputStyle} value={editForm.slug} onChange={e => setEditForm({ ...editForm, slug: e.target.value })} />
+                        {editForm.slug && (
+                          <div style={{ marginTop: 6, fontSize: 11, color: "#888", fontWeight: 300 }}>
+                            {window.location.origin}/client/<strong style={{ color: "#1a1a1a" }}>{editForm.slug}</strong>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ marginBottom: 18 }}>
                         <label style={lbl}>Retainer Since</label>
                         <DatePickerInput value={editForm.since} onChange={val => setEditForm({ ...editForm, since: val })} placeholder="Select start date" />
                       </div>
@@ -697,7 +714,11 @@ export default function App() {
                     <div className="portal-admin-form" style={{ maxWidth: 400 }}>
                       <div style={{ marginBottom: 18 }}>
                         <label style={lbl}>Client Name</label>
-                        <input style={inputStyle} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
+                        <input style={inputStyle} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value, slug: generateSlug(e.target.value) })} />
+                      </div>
+                      <div style={{ marginBottom: 24 }}>
+                        <label style={lbl}>Portal URL Slug</label>
+                        <input style={inputStyle} placeholder="acme-corp" value={newClientForm.slug} onChange={e => setNewClientForm({ ...newClientForm, slug: e.target.value })} />
                       </div>
                       <div style={{ marginBottom: 24 }}>
                         <label style={lbl}>Retainer Since</label>
