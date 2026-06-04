@@ -222,7 +222,7 @@ export default function App() {
   const [logForm, setLogForm]             = useState({ description: "", credits: 1, date: "", galleryUrl: "" });
   const [creditAdjust, setCreditAdjust]   = useState(0);
   const [newClientForm, setNewClientForm] = useState({ name: "", since: "", email: "", phone: "", slug: "" });
-  const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "", slug: "" });
+  const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "", slug: "", notifications_enabled: true });
   const [deleteConfirm, setDeleteConfirm]   = useState(false);
   const [ideaForm, setIdeaForm]           = useState({ title: "", body: "" });
   const [ideaNote, setIdeaNote]           = useState({});
@@ -252,7 +252,7 @@ export default function App() {
     if (!selected) return;
     getShoots(selected.id).then(d => setShoots(d || [])).catch(() => setShoots([]));
     getIdeas(selected.id).then(d => setIdeas(d || [])).catch(() => setIdeas([]));
-    setEditForm({ name: selected.name || "", since: selected.since || "", email: selected.email || "", phone: selected.phone || "", slug: selected.slug || "" });
+    setEditForm({ name: selected.name || "", since: selected.since || "", email: selected.email || "", phone: selected.phone || "", slug: selected.slug || "", notifications_enabled: selected.notifications_enabled ?? true });
     setDeleteConfirm(false);
   }, [selected?.id]);
 
@@ -292,7 +292,7 @@ export default function App() {
 
   const handleEditClient = async () => {
     try {
-      await updateClient(selected.id, { name: editForm.name, since: editForm.since, email: editForm.email, phone: editForm.phone, slug: editForm.slug });
+      await updateClient(selected.id, { name: editForm.name, since: editForm.since, email: editForm.email, phone: editForm.phone, slug: editForm.slug, notifications_enabled: editForm.notifications_enabled });
       await loadClients();
       showToast("Client updated");
     } catch (e) { showToast("Error: " + e.message); }
@@ -712,6 +712,28 @@ export default function App() {
                       <div style={{ marginBottom: 24 }}>
                         <label style={lbl}>Phone</label>
                         <input style={inputStyle} placeholder="(555) 000-0000" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
+                      </div>
+                      <div style={{ marginBottom: 28 }}>
+                        <label style={lbl}>Email Notifications</label>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <button
+                            onClick={() => setEditForm(f => ({ ...f, notifications_enabled: !f.notifications_enabled }))}
+                            style={{
+                              width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", position: "relative", flexShrink: 0,
+                              background: editForm.notifications_enabled ? "#1a1a1a" : "#d0d0cc",
+                              transition: "background 0.2s",
+                            }}
+                          >
+                            <span style={{
+                              position: "absolute", top: 3, left: editForm.notifications_enabled ? 23 : 3,
+                              width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                              transition: "left 0.2s",
+                            }} />
+                          </button>
+                          <span style={{ fontSize: 12, color: "#888" }}>
+                            {editForm.notifications_enabled ? "On — client receives email notifications" : "Off — no emails sent to client"}
+                          </span>
+                        </div>
                       </div>
                       <button onClick={handleEditClient} style={{ ...btn, marginBottom: 40 }}>Save Changes</button>
 
