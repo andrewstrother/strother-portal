@@ -47,8 +47,8 @@ async function updateCredits(clientId, credits) {
   return sb(`clients?id=eq.${clientId}`, { method: "PATCH", body: JSON.stringify({ credits }) });
 }
 async function getShoots(clientId) { return sb(`shoots?client_id=eq.${clientId}&order=date.desc`); }
-async function addShoot(clientId, description, date, credits, month) {
-  return sb("shoots", { method: "POST", body: JSON.stringify({ client_id: clientId, description, date, credits, month }) });
+async function addShoot(clientId, description, date, credits, month, galleryUrl) {
+  return sb("shoots", { method: "POST", body: JSON.stringify({ client_id: clientId, description, date, credits, month, gallery_url: galleryUrl }) });
 }
 async function getIdeas(clientId) { return sb(`content_ideas?client_id=eq.${clientId}&order=created_at.desc`); }
 async function addIdea(clientId, title, body) {
@@ -206,7 +206,7 @@ export default function App() {
   const [clientTab, setClientTab] = useState("overview");
   const [toast, setToast]         = useState(null);
 
-  const [logForm, setLogForm]             = useState({ description: "", credits: 1, date: "" });
+  const [logForm, setLogForm]             = useState({ description: "", credits: 1, date: "", galleryUrl: "" });
   const [creditAdjust, setCreditAdjust]   = useState(0);
   const [newClientForm, setNewClientForm] = useState({ name: "", since: "", email: "", phone: "" });
   const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "" });
@@ -247,11 +247,11 @@ export default function App() {
     if (!logForm.description || !logForm.date) return;
     try {
       const shootMonth = logForm.date ? new Date(logForm.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
-      await addShoot(selected.id, logForm.description, logForm.date, Number(logForm.credits), shootMonth);
+      await addShoot(selected.id, logForm.description, logForm.date, Number(logForm.credits), shootMonth, logForm.galleryUrl);
       await updateCredits(selected.id, Math.max(0, selected.credits - Number(logForm.credits)));
       await loadClients();
       setShoots(await getShoots(selected.id));
-      setLogForm({ description: "", credits: 1, date: "" });
+      setLogForm({ description: "", credits: 1, date: "", galleryUrl: "" });
       showToast("Shoot logged");
     } catch (e) { showToast("Error: " + e.message); }
   };
@@ -319,7 +319,8 @@ export default function App() {
 
   const grouped = (shoots || []).reduce((acc, s) => { (acc[s.month] = acc[s.month] || []).push(s); return acc; }, {});
   const totalRedeemed = (shoots || []).reduce((s, i) => s + i.credits, 0);
-  const thisMonth = (shoots || []).filter(h => h.month === "April 2025").reduce((s, i) => s + i.credits, 0);
+  const currentMonth = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const thisMonth = (shoots || []).filter(h => h.month === currentMonth).reduce((s, i) => s + i.credits, 0);
   const pendingCount = (ideas || []).filter(i => i.status === "pending").length;
 
   const switchToAdmin = () => { if (adminUnlocked) { setMode("admin"); } else { setShowPin(true); } };
@@ -471,7 +472,15 @@ export default function App() {
                               </div>
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 400, color: "#1a1a1a" }}>{item.description}</div>
-                                <div style={{ fontSize: 11, color: "#888", marginTop: 3, fontWeight: 300 }}>{item.date ? new Date(item.date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}</div>
+                                <div style={{ fontSize: 11, color: "#888", marginTop: 3, fontWeight: 300, display: "flex", alignItems: "center", gap: 12 }}>
+                                  <span>{item.date ? new Date(item.date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}</span>
+                                  {item.gallery_url && (
+                                    <a href={item.gallery_url} target="_blank" rel="noopener noreferrer"
+                                      style={{ fontSize: 10, fontWeight: 500, letterSpacing: 1.5, textTransform: "uppercase", color: "#1a1a1a", textDecoration: "none", borderBottom: "1px solid #1a1a1a", paddingBottom: 1 }}>
+                                      View Gallery →
+                                    </a>
+                                  )}
+                                </div>
                               </div>
                               <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", border: "1px solid #1a1a1a", padding: "4px 11px", borderRadius: 2, flexShrink: 0 }}>
                                 {item.credits} {item.credits === 1 ? "credit" : "credits"}
@@ -553,6 +562,10 @@ export default function App() {
                         </div>
                       </div>
 
+                      <div style={{ marginBottom: 18 }}>
+                        <label style={lbl}>Gallery Link <span style={{ fontWeight: 300, letterSpacing: 0, textTransform: "none", fontSize: 10 }}>(optional)</span></label>
+                        <input style={inputStyle} placeholder="https://gallery.andrewstrother.com/..." value={logForm.galleryUrl} onChange={e => setLogForm({ ...logForm, galleryUrl: e.target.value })} />
+                      </div>
                       <div style={{ padding: "13px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888", lineHeight: 1.5 }}>
                         Deducts <strong style={{ color: "#1a1a1a" }}>{logForm.credits} credit{logForm.credits !== 1 ? "s" : ""}</strong> from <strong style={{ color: "#1a1a1a" }}>{selected.name}</strong> — leaving <strong style={{ color: "#1a1a1a" }}>{Math.max(0, selected.credits - Number(logForm.credits))}</strong> remaining.
                       </div>
