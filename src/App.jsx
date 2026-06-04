@@ -72,6 +72,7 @@ const btn = {
   background: "#1a1a1a", color: "#fff", border: "none", borderRadius: 3,
   padding: "11px 26px", fontSize: 10, fontWeight: 500, letterSpacing: 2.5,
   textTransform: "uppercase", cursor: "pointer", fontFamily: "'Jost', sans-serif",
+  display: "block",
 };
 
 function Badge({ status }) {
