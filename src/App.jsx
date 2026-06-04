@@ -283,7 +283,7 @@ export default function App() {
               </div>
               <div style={{ marginBottom: 24 }}>
                 <label style={lbl}>Retainer Since</label>
-                <input style={input} placeholder="e.g. June 2025" value={newClientForm.since} onChange={e => setNewClientForm({ ...newClientForm, since: e.target.value })} />
+                <input type="date" style={input} value={newClientForm.since} onChange={e => setNewClientForm({ ...newClientForm, since: e.target.value })} />
               </div>
               <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
                 New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
@@ -297,7 +297,7 @@ export default function App() {
               {/* ══ CLIENT VIEW ══ */}
               {mode === "client" && (
                 <>
-                  <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 10 }}>Client since {selected.since}</div>
+                  <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 10 }}>Client since {selected.since ? new Date(selected.since + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ""}</div>
                   <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 52, margin: "0 0 28px", lineHeight: 1.05 }}>{selected.name}</h1>
 
                   <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #e2e2e0", marginBottom: 36 }}>
@@ -507,7 +507,7 @@ export default function App() {
                       </div>
                       <div style={{ marginBottom: 24 }}>
                         <label style={lbl}>Retainer Since</label>
-                        <input style={input} placeholder="e.g. April 2025" value={newClientForm.since} onChange={e => setNewClientForm({ ...newClientForm, since: e.target.value })} />
+                        <input type="date" style={input} value={newClientForm.since} onChange={e => setNewClientForm({ ...newClientForm, since: e.target.value })} />
                       </div>
                       <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
                         New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
