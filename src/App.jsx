@@ -79,10 +79,19 @@ const btn = {
   display: "block",
 };
 
-function Badge({ status }) {
-  const m = { pending: ["#f5f5f3","#d0d0cc","#888","Pending"], approved: ["#f0faf4","#a8dab5","#2d7a4f","Approved"], rejected: ["#fdf2f2","#f0b8b8","#c0392b","Declined"] };
+function Badge({ status, proposedDate }) {
+  const m = {
+    pending: ["#f5f5f3","#d0d0cc","#888","Pending"],
+    approved: ["#f0faf4","#a8dab5","#2d7a4f","Approved"],
+    rejected: ["#fdf2f2","#f0b8b8","#c0392b","Declined"],
+    schedule_requested: ["#fdf6ee","#f5d5a0","#b5710a", null],
+    confirmed: ["#f0faf4","#a8dab5","#2d7a4f","Confirmed"],
+  };
   const [bg, border, color, label] = m[status] || m.pending;
-  return <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", background: bg, border: `1px solid ${border}`, color, padding: "3px 10px", borderRadius: 2 }}>{label}</span>;
+  const displayLabel = status === "schedule_requested"
+    ? `Schedule Requested${proposedDate ? ` — ${new Date(proposedDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}` : ""}`
+    : label;
+  return <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", background: bg, border: `1px solid ${border}`, color, padding: "3px 10px", borderRadius: 2 }}>{displayLabel}</span>;
 }
 
 // ── Calendar date picker ──
@@ -318,6 +327,14 @@ export default function App() {
       setIdeas(await getIdeas(selected.id));
       if (action !== "note") showToast(`Idea ${action}`);
       else showToast("Note saved");
+    } catch (e) { showToast("Error: " + e.message); }
+  };
+
+  const handleConfirmShoot = async (idea) => {
+    try {
+      await updateIdea(idea.id, { schedule_confirmed: true, status: "confirmed" });
+      setIdeas(await getIdeas(selected.id));
+      showToast("Shoot confirmed");
     } catch (e) { showToast("Error: " + e.message); }
   };
 
@@ -645,13 +662,23 @@ export default function App() {
                         <div key={idea.id} style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "20px 24px", marginBottom: 12 }}>
                           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
                             <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 19, fontWeight: 400, color: "#1a1a1a" }}>{idea.title}</div>
-                            <Badge status={idea.status} />
+                            <Badge status={idea.status} proposedDate={idea.proposed_date} />
                           </div>
                           {idea.body && <div style={{ fontSize: 12, color: "#888", lineHeight: 1.6, marginBottom: 8 }}>{idea.body}</div>}
+                          {idea.proposed_date && idea.status === "schedule_requested" && (
+                            <div style={{ fontSize: 12, color: "#b5710a", marginBottom: 8, fontWeight: 500 }}>
+                              Proposed: {new Date(idea.proposed_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                            </div>
+                          )}
                           {idea.client_note && (
                             <div style={{ marginTop: 10, padding: "10px 14px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, fontSize: 12, color: "#666", lineHeight: 1.5 }}>
                               <span style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#888", display: "block", marginBottom: 4 }}>Client note</span>
                               {idea.client_note}
+                            </div>
+                          )}
+                          {idea.status === "schedule_requested" && (
+                            <div style={{ marginTop: 12 }}>
+                              <button onClick={() => handleConfirmShoot(idea)} style={{ ...btn, background: "#2d7a4f", padding: "8px 18px", fontSize: 9 }}>✓ Confirm Shoot</button>
                             </div>
                           )}
                         </div>
