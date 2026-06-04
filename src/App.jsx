@@ -3,7 +3,7 @@
 // Credentials are loaded from environment variables.
 // Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel.
 // ── Change your admin PIN here ──
-const ADMIN_PIN = "1234";
+const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN;
 // ============================================================
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
