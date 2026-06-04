@@ -1,28 +1,23 @@
 // ============================================================
 // ANDREW STROTHER — CLIENT PORTAL
-// Supabase-connected: credits, shoot history, content ideas
+// Credentials are loaded from environment variables.
+// Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel.
+// ── Change your admin PIN here ──
+const ADMIN_PIN = "1234";
 // ============================================================
-//
-// SETUP: Replace the two lines below with your Supabase credentials.
-// Get them from: supabase.com → your project → Settings → API
-//
-const SUPABASE_URL = "https://vavpdxzxvvzlvlmvolcf.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_7NtIMNOWuMcomZD-yiCSGA_4nXh9bk8";
-//
-// ============================================================
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 import { useState, useEffect, useCallback } from "react";
 
 // ── Supabase REST client ──
 async function sb(path, options = {}) {
   const url = `${SUPABASE_URL}/rest/v1/${path}`;
-  const isPublishableKey = SUPABASE_ANON_KEY.startsWith("sb_publishable_");
   const res = await fetch(url, {
     ...options,
     headers: {
-      ...(isPublishableKey
-        ? { "x-api-key": SUPABASE_ANON_KEY }
-        : { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }),
+      apikey: SUPABASE_ANON_KEY,
       "Content-Type": "application/json",
       Prefer: options.prefer || "",
       ...(options.headers || {}),
@@ -112,20 +107,19 @@ export default function App() {
   const [loading, setLoading]   = useState(true);
   const [dbError, setDbError]   = useState(null);
 
-  // Mode: "client" | "admin"
-  const [mode, setMode]               = useState("client");
+  const [mode, setMode]                   = useState("client");
   const [adminUnlocked, setAdminUnlocked] = useState(false);
-  const [showPin, setShowPin]         = useState(false);
+  const [showPin, setShowPin]             = useState(false);
 
   const [adminTab, setAdminTab]   = useState("log");
   const [clientTab, setClientTab] = useState("overview");
   const [toast, setToast]         = useState(null);
 
-  const [logForm, setLogForm]       = useState({ description: "", credits: 1, date: "", month: "April 2025" });
-  const [creditAdjust, setCreditAdjust] = useState(0);
+  const [logForm, setLogForm]             = useState({ description: "", credits: 1, date: "", month: "April 2025" });
+  const [creditAdjust, setCreditAdjust]   = useState(0);
   const [newClientForm, setNewClientForm] = useState({ name: "", since: "" });
-  const [ideaForm, setIdeaForm]     = useState({ title: "", body: "" });
-  const [ideaNote, setIdeaNote]     = useState({});
+  const [ideaForm, setIdeaForm]           = useState({ title: "", body: "" });
+  const [ideaNote, setIdeaNote]           = useState({});
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
 
@@ -208,31 +202,20 @@ export default function App() {
     } catch (e) { showToast("Error: " + e.message); }
   };
 
-  // Derived
   const grouped = (shoots || []).reduce((acc, s) => { (acc[s.month] = acc[s.month] || []).push(s); return acc; }, {});
   const totalRedeemed = (shoots || []).reduce((s, i) => s + i.credits, 0);
   const thisMonth = (shoots || []).filter(h => h.month === "April 2025").reduce((s, i) => s + i.credits, 0);
   const pendingCount = (ideas || []).filter(i => i.status === "pending").length;
 
-  const switchToAdmin = () => {
-    if (adminUnlocked) { setMode("admin"); }
-    else { setShowPin(true); }
-  };
-
-  const handleUnlock = () => {
-    setAdminUnlocked(true);
-    setShowPin(false);
-    setMode("admin");
-  };
+  const switchToAdmin = () => { if (adminUnlocked) { setMode("admin"); } else { setShowPin(true); } };
+  const handleUnlock = () => { setAdminUnlocked(true); setShowPin(false); setMode("admin"); };
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f5f3", fontFamily: "'Jost', sans-serif", color: "#1a1a1a" }}>
       <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
-      {/* PIN overlay — rendered on top, does not replace the app */}
       {showPin && <PinGate onUnlock={handleUnlock} onCancel={() => setShowPin(false)} />}
 
-      {/* Toast */}
       {toast && (
         <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: "#1a1a1a", color: "#fff", padding: "10px 24px", borderRadius: 3, fontSize: 12, letterSpacing: 1, zIndex: 500, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
           {toast}
@@ -283,10 +266,9 @@ export default function App() {
         {/* Main */}
         <main style={{ flex: 1, padding: "52px 64px", maxWidth: 900, overflowY: "auto" }}>
 
-          {/* No DB connection message in main area */}
           {dbError && (
             <div style={{ background: "#fff", border: "1px solid #f0b8b8", borderRadius: 3, padding: "20px 24px", marginBottom: 32, fontSize: 13, color: "#c0392b", lineHeight: 1.6 }}>
-              <strong>Database not connected.</strong> Open <code>src/App.jsx</code> and replace <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> at the top of the file, then redeploy.
+              <strong>Database not connected.</strong> Open <code>src/App.jsx</code> and replace <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> at the top, then redeploy.
             </div>
           )}
 
@@ -298,7 +280,6 @@ export default function App() {
                   <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 10 }}>Client since {selected.since}</div>
                   <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 52, margin: "0 0 28px", lineHeight: 1.05 }}>{selected.name}</h1>
 
-                  {/* Client tabs */}
                   <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #e2e2e0", marginBottom: 36 }}>
                     {[["overview","Overview"], ["ideas", `Content Ideas${pendingCount > 0 ? ` (${pendingCount})` : ""}`]].map(([tab, label]) => (
                       <button key={tab} onClick={() => setClientTab(tab)} style={{ background: "none", border: "none", borderBottom: clientTab === tab ? "2px solid #1a1a1a" : "2px solid transparent", padding: "10px 18px", fontSize: 10, fontWeight: clientTab === tab ? 500 : 400, letterSpacing: 2, textTransform: "uppercase", color: clientTab === tab ? "#1a1a1a" : "#aaa", cursor: "pointer", fontFamily: "'Jost', sans-serif", marginBottom: -1 }}>
@@ -307,7 +288,6 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* Overview */}
                   {clientTab === "overview" && (
                     <>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 52 }}>
@@ -360,7 +340,6 @@ export default function App() {
                     </>
                   )}
 
-                  {/* Content ideas — client */}
                   {clientTab === "ideas" && (
                     <div>
                       {ideas.length === 0 && <div style={{ fontSize: 14, color: "#bbb", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>No content ideas posted yet.</div>}
@@ -406,7 +385,6 @@ export default function App() {
                   </div>
                   <div style={{ height: 1, background: "#e2e2e0", marginBottom: 32 }} />
 
-                  {/* Admin tabs */}
                   <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #e2e2e0", marginBottom: 36 }}>
                     {[["log","Log Shoot"],["credits","Adjust Credits"],["ideas","Content Ideas"],["clients","Add Client"]].map(([tab, label]) => (
                       <button key={tab} onClick={() => setAdminTab(tab)} style={{ background: "none", border: "none", borderBottom: adminTab === tab ? "2px solid #1a1a1a" : "2px solid transparent", padding: "10px 18px", fontSize: 10, fontWeight: adminTab === tab ? 500 : 400, letterSpacing: 2, textTransform: "uppercase", color: adminTab === tab ? "#1a1a1a" : "#aaa", cursor: "pointer", fontFamily: "'Jost', sans-serif", marginBottom: -1 }}>
@@ -415,7 +393,6 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* Log Shoot */}
                   {adminTab === "log" && (
                     <div style={{ maxWidth: 480 }}>
                       <div style={{ marginBottom: 18 }}>
@@ -445,7 +422,6 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Adjust Credits */}
                   {adminTab === "credits" && (
                     <div style={{ maxWidth: 380 }}>
                       <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "24px 28px", marginBottom: 24 }}>
@@ -469,7 +445,6 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Content Ideas — admin */}
                   {adminTab === "ideas" && (
                     <div style={{ maxWidth: 580 }}>
                       <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "24px 28px", marginBottom: 32 }}>
@@ -504,7 +479,6 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Add Client */}
                   {adminTab === "clients" && (
                     <div style={{ maxWidth: 400 }}>
                       <div style={{ marginBottom: 18 }}>
