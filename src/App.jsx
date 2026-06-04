@@ -272,6 +272,26 @@ export default function App() {
             </div>
           )}
 
+          {mode === "admin" && !selected && (
+            <div style={{ maxWidth: 400 }}>
+              <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 10 }}>Admin Panel</div>
+              <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 48, margin: "0 0 32px", lineHeight: 1.05 }}>Add Your First Client</h1>
+              <div style={{ height: 1, background: "#e2e2e0", marginBottom: 32 }} />
+              <div style={{ marginBottom: 18 }}>
+                <label style={lbl}>Client Name</label>
+                <input style={input} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })} />
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <label style={lbl}>Retainer Since</label>
+                <input style={input} placeholder="e.g. June 2025" value={newClientForm.since} onChange={e => setNewClientForm({ ...newClientForm, since: e.target.value })} />
+              </div>
+              <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
+                New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
+              </div>
+              <button onClick={handleAddClient} style={btn}>Add Client</button>
+            </div>
+          )}
+
           {selected && (
             <>
               {/* ══ CLIENT VIEW ══ */}
