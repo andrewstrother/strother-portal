@@ -34,8 +34,14 @@ async function sb(path, options = {}) {
 }
 
 async function getClients() { return sb("clients?select=*&order=name.asc"); }
-async function addClient(name, since) {
-  return sb("clients", { method: "POST", prefer: "return=representation", body: JSON.stringify({ name, since, credits: 4 }) });
+async function addClient(name, since, email, phone) {
+  return sb("clients", { method: "POST", prefer: "return=representation", body: JSON.stringify({ name, since, email, phone, credits: 4 }) });
+}
+async function updateClient(clientId, patch) {
+  return sb(`clients?id=eq.${clientId}`, { method: "PATCH", body: JSON.stringify(patch) });
+}
+async function deleteClient(clientId) {
+  return sb(`clients?id=eq.${clientId}`, { method: "DELETE" });
 }
 async function updateCredits(clientId, credits) {
   return sb(`clients?id=eq.${clientId}`, { method: "PATCH", body: JSON.stringify({ credits }) });
@@ -60,14 +66,13 @@ const inputStyle = {
 };
 const lbl = {
   fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase",
-  color: "#bbb", display: "block", marginBottom: 6,
+  color: "#888", display: "block", marginBottom: 6,
 };
 const btn = {
   background: "#1a1a1a", color: "#fff", border: "none", borderRadius: 3,
   padding: "11px 26px", fontSize: 10, fontWeight: 500, letterSpacing: 2.5,
   textTransform: "uppercase", cursor: "pointer", fontFamily: "'Jost', sans-serif",
 };
-const MONTHS = ["April 2025","March 2025","February 2025","January 2025","December 2024","November 2024","October 2024"];
 
 function Badge({ status }) {
   const m = { pending: ["#f5f5f3","#d0d0cc","#888","Pending"], approved: ["#f0faf4","#a8dab5","#2d7a4f","Approved"], rejected: ["#fdf2f2","#f0b8b8","#c0392b","Declined"] };
@@ -168,7 +173,7 @@ function PinGate({ onUnlock, onCancel }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(245,245,243,0.96)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, fontFamily: "'Jost', sans-serif" }}>
       <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 4, padding: "48px 52px", width: 320, textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.08)" }}>
-        <div style={{ fontSize: 10, letterSpacing: 3, textTransform: "uppercase", color: "#bbb", marginBottom: 8 }}>Admin Access</div>
+        <div style={{ fontSize: 10, letterSpacing: 3, textTransform: "uppercase", color: "#888", marginBottom: 8 }}>Admin Access</div>
         <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, color: "#1a1a1a", marginBottom: 32 }}>Andrew Strother</div>
         <input
           type="password" placeholder="Enter PIN" value={pin} autoFocus
@@ -178,7 +183,7 @@ function PinGate({ onUnlock, onCancel }) {
         />
         {err && <div style={{ fontSize: 11, color: "#c0392b", marginBottom: 8 }}>Incorrect PIN — try again</div>}
         <button onClick={attempt} style={{ ...btn, width: "100%", padding: "11px 0", marginBottom: 10 }}>Enter</button>
-        <button onClick={onCancel} style={{ background: "none", border: "none", fontSize: 11, color: "#bbb", cursor: "pointer", fontFamily: "'Jost', sans-serif", letterSpacing: 1 }}>Cancel</button>
+        <button onClick={onCancel} style={{ background: "none", border: "none", fontSize: 11, color: "#888", cursor: "pointer", fontFamily: "'Jost', sans-serif", letterSpacing: 1 }}>Cancel</button>
       </div>
     </div>
   );
@@ -200,9 +205,11 @@ export default function App() {
   const [clientTab, setClientTab] = useState("overview");
   const [toast, setToast]         = useState(null);
 
-  const [logForm, setLogForm]             = useState({ description: "", credits: 1, date: "", month: "April 2025" });
+  const [logForm, setLogForm]             = useState({ description: "", credits: 1, date: "" });
   const [creditAdjust, setCreditAdjust]   = useState(0);
-  const [newClientForm, setNewClientForm] = useState({ name: "", since: "" });
+  const [newClientForm, setNewClientForm] = useState({ name: "", since: "", email: "", phone: "" });
+  const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "" });
+  const [deleteConfirm, setDeleteConfirm]   = useState(false);
   const [ideaForm, setIdeaForm]           = useState({ title: "", body: "" });
   const [ideaNote, setIdeaNote]           = useState({});
 
@@ -231,16 +238,19 @@ export default function App() {
     if (!selected) return;
     getShoots(selected.id).then(d => setShoots(d || [])).catch(() => setShoots([]));
     getIdeas(selected.id).then(d => setIdeas(d || [])).catch(() => setIdeas([]));
+    setEditForm({ name: selected.name || "", since: selected.since || "", email: selected.email || "", phone: selected.phone || "" });
+    setDeleteConfirm(false);
   }, [selected?.id]);
 
   const handleLogShoot = async () => {
     if (!logForm.description || !logForm.date) return;
     try {
-      await addShoot(selected.id, logForm.description, logForm.date, Number(logForm.credits), logForm.month);
+      const shootMonth = logForm.date ? new Date(logForm.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
+      await addShoot(selected.id, logForm.description, logForm.date, Number(logForm.credits), shootMonth);
       await updateCredits(selected.id, Math.max(0, selected.credits - Number(logForm.credits)));
       await loadClients();
       setShoots(await getShoots(selected.id));
-      setLogForm({ description: "", credits: 1, date: "", month: "April 2025" });
+      setLogForm({ description: "", credits: 1, date: "" });
       showToast("Shoot logged");
     } catch (e) { showToast("Error: " + e.message); }
   };
@@ -259,10 +269,29 @@ export default function App() {
   const handleAddClient = async () => {
     if (!newClientForm.name || !newClientForm.since) return;
     try {
-      await addClient(newClientForm.name, newClientForm.since);
+      await addClient(newClientForm.name, newClientForm.since, newClientForm.email, newClientForm.phone);
       await loadClients();
-      setNewClientForm({ name: "", since: "" });
+      setNewClientForm({ name: "", since: "", email: "", phone: "" });
       showToast("Client added");
+    } catch (e) { showToast("Error: " + e.message); }
+  };
+
+  const handleEditClient = async () => {
+    try {
+      await updateClient(selected.id, { name: editForm.name, since: editForm.since, email: editForm.email, phone: editForm.phone });
+      await loadClients();
+      showToast("Client updated");
+    } catch (e) { showToast("Error: " + e.message); }
+  };
+
+  const handleDeleteClient = async () => {
+    try {
+      await deleteClient(selected.id);
+      setSelected(null);
+      await loadClients();
+      setDeleteConfirm(false);
+      setMode("client");
+      showToast("Client deleted");
     } catch (e) { showToast("Error: " + e.message); }
   };
 
@@ -330,7 +359,7 @@ export default function App() {
         {/* Sidebar */}
         <aside style={{ width: 256, background: "#fff", borderRight: "1px solid #e2e2e0", paddingTop: 36, flexShrink: 0 }}>
           <div style={{ padding: "0 28px 14px", fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#c0c0bc" }}>Clients</div>
-          {loading && <div style={{ padding: "0 28px", fontSize: 12, color: "#bbb" }}>Loading…</div>}
+          {loading && <div style={{ padding: "0 28px", fontSize: 12, color: "#888" }}>Loading…</div>}
           {dbError && <div style={{ padding: "0 28px", fontSize: 11, color: "#c0392b", lineHeight: 1.5 }}>DB error — check Supabase credentials</div>}
           {clients.map(client => {
             const isActive = selected?.id === client.id;
@@ -340,7 +369,7 @@ export default function App() {
                 onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#fafaf8"; }}
                 onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
                 <div style={{ fontSize: 13, fontWeight: isActive ? 500 : 400, color: isActive ? "#1a1a1a" : "#666", marginBottom: 2 }}>{client.name}</div>
-                <div style={{ fontSize: 11, color: "#bbb", fontWeight: 300 }}>
+                <div style={{ fontSize: 11, color: "#666", fontWeight: 300 }}>
                   <span style={{ color: isActive ? "#1a1a1a" : "#999", fontWeight: 500 }}>{client.credits}</span> credits
                 </div>
               </div>
@@ -359,7 +388,7 @@ export default function App() {
 
           {mode === "admin" && !selected && (
             <div style={{ maxWidth: 400 }}>
-              <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 10 }}>Admin Panel</div>
+              <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 10 }}>Admin Panel</div>
               <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 48, margin: "0 0 32px", lineHeight: 1.05 }}>Add Your First Client</h1>
               <div style={{ height: 1, background: "#e2e2e0", marginBottom: 32 }} />
               <div style={{ marginBottom: 18 }}>
@@ -369,6 +398,14 @@ export default function App() {
               <div style={{ marginBottom: 24 }}>
                 <label style={lbl}>Retainer Since</label>
                 <DatePickerInput value={newClientForm.since} onChange={val => setNewClientForm({ ...newClientForm, since: val })} placeholder="Select start date" />
+              </div>
+              <div style={{ marginBottom: 18 }}>
+                <label style={lbl}>Email</label>
+                <input style={inputStyle} placeholder="client@example.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <label style={lbl}>Phone</label>
+                <input style={inputStyle} placeholder="(555) 000-0000" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
               </div>
               <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
                 New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
@@ -382,8 +419,8 @@ export default function App() {
               {/* ══ CLIENT VIEW ══ */}
               {mode === "client" && (
                 <>
-                  <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 10 }}>Client since {selected.since ? new Date(selected.since + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ""}</div>
-                  <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 52, margin: "0 0 28px", lineHeight: 1.05 }}>{selected.name}</h1>
+                  <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 10, textAlign: "left" }}>Client since {selected.since ? new Date(selected.since + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ""}</div>
+                  <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 52, margin: "0 0 28px", lineHeight: 1.05, textAlign: "left" }}>{selected.name}</h1>
 
                   <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #e2e2e0", marginBottom: 36 }}>
                     {[["overview","Overview"], ["ideas", `Content Ideas${pendingCount > 0 ? ` (${pendingCount})` : ""}`]].map(([tab, label]) => (
@@ -407,19 +444,19 @@ export default function App() {
                           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 14, fontWeight: 300 }}>4 credits / month · unused roll over</div>
                         </div>
                         <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "28px 30px" }}>
-                          <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 16 }}>Used This Month</div>
+                          <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 16 }}>Used This Month</div>
                           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 72, fontWeight: 300, lineHeight: 1, color: "#1a1a1a" }}>{thisMonth}</div>
-                          <div style={{ fontSize: 11, color: "#bbb", marginTop: 16, fontWeight: 300 }}>of 4 monthly credits</div>
+                          <div style={{ fontSize: 11, color: "#888", marginTop: 16, fontWeight: 300 }}>of 4 monthly credits</div>
                         </div>
                         <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "28px 30px" }}>
-                          <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 16 }}>Total Sessions</div>
+                          <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 16 }}>Total Sessions</div>
                           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 72, fontWeight: 300, lineHeight: 1, color: "#1a1a1a" }}>{shoots.length}</div>
-                          <div style={{ fontSize: 11, color: "#bbb", marginTop: 16, fontWeight: 300 }}>{totalRedeemed} credits redeemed total</div>
+                          <div style={{ fontSize: 11, color: "#888", marginTop: 16, fontWeight: 300 }}>{totalRedeemed} credits redeemed total</div>
                         </div>
                       </div>
 
-                      <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 28 }}>Shoot History</div>
-                      {Object.keys(grouped).length === 0 && <div style={{ fontSize: 14, color: "#bbb", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>No shoots logged yet.</div>}
+                      <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 28 }}>Shoot History</div>
+                      {Object.keys(grouped).length === 0 && <div style={{ fontSize: 14, color: "#888", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>No shoots logged yet.</div>}
                       {Object.entries(grouped).map(([month, items]) => (
                         <div key={month} style={{ marginBottom: 36 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 4 }}>
@@ -433,7 +470,7 @@ export default function App() {
                               </div>
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 400, color: "#1a1a1a" }}>{item.description}</div>
-                                <div style={{ fontSize: 11, color: "#bbb", marginTop: 3, fontWeight: 300 }}>{item.date ? new Date(item.date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}</div>
+                                <div style={{ fontSize: 11, color: "#888", marginTop: 3, fontWeight: 300 }}>{item.date ? new Date(item.date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}</div>
                               </div>
                               <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", border: "1px solid #1a1a1a", padding: "4px 11px", borderRadius: 2, flexShrink: 0 }}>
                                 {item.credits} {item.credits === 1 ? "credit" : "credits"}
@@ -447,7 +484,7 @@ export default function App() {
 
                   {clientTab === "ideas" && (
                     <div>
-                      {ideas.length === 0 && <div style={{ fontSize: 14, color: "#bbb", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>No content ideas posted yet.</div>}
+                      {ideas.length === 0 && <div style={{ fontSize: 14, color: "#888", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>No content ideas posted yet.</div>}
                       {ideas.map(idea => (
                         <div key={idea.id} style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "24px 28px", marginBottom: 16 }}>
                           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 10 }}>
@@ -483,15 +520,15 @@ export default function App() {
               {/* ══ ADMIN VIEW ══ */}
               {mode === "admin" && (
                 <>
-                  <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 10 }}>Admin · {selected.name}</div>
-                  <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 48, margin: "0 0 8px", lineHeight: 1.05 }}>{selected.name}</h1>
-                  <div style={{ fontSize: 13, color: "#bbb", marginBottom: 32 }}>
+                  <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 10, textAlign: "left" }}>Admin · {selected.name}</div>
+                  <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 48, margin: "0 0 8px", lineHeight: 1.05, textAlign: "left" }}>{selected.name}</h1>
+                  <div style={{ fontSize: 13, color: "#888", marginBottom: 32 }}>
                     <span style={{ color: "#1a1a1a", fontWeight: 500 }}>{selected.credits}</span> credits remaining
                   </div>
                   <div style={{ height: 1, background: "#e2e2e0", marginBottom: 32 }} />
 
                   <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #e2e2e0", marginBottom: 36 }}>
-                    {[["log","Log Shoot"],["credits","Adjust Credits"],["ideas","Content Ideas"],["clients","Add Client"]].map(([tab, label]) => (
+                    {[["log","Log Shoot"],["credits","Adjust Credits"],["ideas","Content Ideas"],["edit","Edit Client"],["clients","Add Client"]].map(([tab, label]) => (
                       <button key={tab} onClick={() => setAdminTab(tab)} style={{ background: "none", border: "none", borderBottom: adminTab === tab ? "2px solid #1a1a1a" : "2px solid transparent", padding: "10px 18px", fontSize: 10, fontWeight: adminTab === tab ? 500 : 400, letterSpacing: 2, textTransform: "uppercase", color: adminTab === tab ? "#1a1a1a" : "#aaa", cursor: "pointer", fontFamily: "'Jost', sans-serif", marginBottom: -1 }}>
                         {label}
                       </button>
@@ -514,12 +551,7 @@ export default function App() {
                           <input type="number" min="1" max="12" style={inputStyle} value={logForm.credits} onChange={e => setLogForm({ ...logForm, credits: Number(e.target.value) })} />
                         </div>
                       </div>
-                      <div style={{ marginBottom: 24 }}>
-                        <label style={lbl}>Month</label>
-                        <select style={inputStyle} value={logForm.month} onChange={e => setLogForm({ ...logForm, month: e.target.value })}>
-                          {MONTHS.map(m => <option key={m}>{m}</option>)}
-                        </select>
-                      </div>
+
                       <div style={{ padding: "13px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888", lineHeight: 1.5 }}>
                         Deducts <strong style={{ color: "#1a1a1a" }}>{logForm.credits} credit{logForm.credits !== 1 ? "s" : ""}</strong> from <strong style={{ color: "#1a1a1a" }}>{selected.name}</strong> — leaving <strong style={{ color: "#1a1a1a" }}>{Math.max(0, selected.credits - Number(logForm.credits))}</strong> remaining.
                       </div>
@@ -530,9 +562,9 @@ export default function App() {
                   {adminTab === "credits" && (
                     <div style={{ maxWidth: 380 }}>
                       <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "24px 28px", marginBottom: 24 }}>
-                        <div style={{ fontSize: 9, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 8 }}>Current Balance</div>
+                        <div style={{ fontSize: 9, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 8 }}>Current Balance</div>
                         <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 56, fontWeight: 300, color: "#1a1a1a", lineHeight: 1 }}>{selected.credits}</div>
-                        <div style={{ fontSize: 11, color: "#bbb", marginTop: 4 }}>credits</div>
+                        <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>credits</div>
                       </div>
                       <label style={lbl}>Adjust Amount</label>
                       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
@@ -553,7 +585,7 @@ export default function App() {
                   {adminTab === "ideas" && (
                     <div style={{ maxWidth: 580 }}>
                       <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "24px 28px", marginBottom: 32 }}>
-                        <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 16 }}>Post New Idea</div>
+                        <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 16 }}>Post New Idea</div>
                         <div style={{ marginBottom: 14 }}>
                           <label style={lbl}>Title</label>
                           <input style={inputStyle} placeholder="e.g. Behind-the-scenes Reels series" value={ideaForm.title} onChange={e => setIdeaForm({ ...ideaForm, title: e.target.value })} />
@@ -564,8 +596,8 @@ export default function App() {
                         </div>
                         <button onClick={handleAddIdea} style={btn}>Post to Client</button>
                       </div>
-                      <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#bbb", marginBottom: 20 }}>Submitted Ideas</div>
-                      {ideas.length === 0 && <div style={{ fontSize: 14, color: "#bbb", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>None yet.</div>}
+                      <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 20 }}>Submitted Ideas</div>
+                      {ideas.length === 0 && <div style={{ fontSize: 14, color: "#888", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>None yet.</div>}
                       {ideas.map(idea => (
                         <div key={idea.id} style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "20px 24px", marginBottom: 12 }}>
                           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
@@ -575,12 +607,54 @@ export default function App() {
                           {idea.body && <div style={{ fontSize: 12, color: "#888", lineHeight: 1.6, marginBottom: 8 }}>{idea.body}</div>}
                           {idea.client_note && (
                             <div style={{ marginTop: 10, padding: "10px 14px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, fontSize: 12, color: "#666", lineHeight: 1.5 }}>
-                              <span style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#bbb", display: "block", marginBottom: 4 }}>Client note</span>
+                              <span style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#888", display: "block", marginBottom: 4 }}>Client note</span>
                               {idea.client_note}
                             </div>
                           )}
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {adminTab === "edit" && (
+                    <div style={{ maxWidth: 480 }}>
+                      <div style={{ marginBottom: 18 }}>
+                        <label style={lbl}>Client Name</label>
+                        <input style={inputStyle} value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
+                      </div>
+                      <div style={{ marginBottom: 18 }}>
+                        <label style={lbl}>Retainer Since</label>
+                        <DatePickerInput value={editForm.since} onChange={val => setEditForm({ ...editForm, since: val })} placeholder="Select start date" />
+                      </div>
+                      <div style={{ marginBottom: 18 }}>
+                        <label style={lbl}>Email</label>
+                        <input style={inputStyle} placeholder="client@example.com" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} />
+                      </div>
+                      <div style={{ marginBottom: 24 }}>
+                        <label style={lbl}>Phone</label>
+                        <input style={inputStyle} placeholder="(555) 000-0000" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
+                      </div>
+                      <button onClick={handleEditClient} style={{ ...btn, marginBottom: 40 }}>Save Changes</button>
+
+                      <div style={{ borderTop: "1px solid #e2e2e0", paddingTop: 32 }}>
+                        <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 12 }}>Danger Zone</div>
+                        {!deleteConfirm ? (
+                          <button onClick={() => setDeleteConfirm(true)}
+                            style={{ ...btn, background: "transparent", color: "#c0392b", border: "1px solid #c0392b", padding: "10px 22px" }}>
+                            Delete Client
+                          </button>
+                        ) : (
+                          <div style={{ background: "#fdf2f2", border: "1px solid #f0b8b8", borderRadius: 3, padding: "16px 20px" }}>
+                            <div style={{ fontSize: 13, color: "#c0392b", marginBottom: 14, lineHeight: 1.5 }}>
+                              Permanently delete <strong>{selected.name}</strong> and all their shoots and content ideas? This cannot be undone.
+                            </div>
+                            <div style={{ display: "flex", gap: 10 }}>
+                              <button onClick={handleDeleteClient} style={{ ...btn, background: "#c0392b", padding: "9px 20px", fontSize: 9 }}>Yes, Delete</button>
+                              <button onClick={() => setDeleteConfirm(false)} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "9px 20px", fontSize: 9 }}>Cancel</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -594,6 +668,14 @@ export default function App() {
                         <label style={lbl}>Retainer Since</label>
                         <DatePickerInput value={newClientForm.since} onChange={val => setNewClientForm({ ...newClientForm, since: val })} placeholder="Select start date" />
                       </div>
+                      <div style={{ marginBottom: 18 }}>
+                        <label style={lbl}>Email</label>
+                        <input style={inputStyle} placeholder="client@example.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
+                      </div>
+                      <div style={{ marginBottom: 24 }}>
+                        <label style={lbl}>Phone</label>
+                        <input style={inputStyle} placeholder="(555) 000-0000" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
+                      </div>
                       <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
                         New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
                       </div>
@@ -606,7 +688,7 @@ export default function App() {
           )}
 
           {!loading && clients.length === 0 && !dbError && (
-            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: "#bbb", fontStyle: "italic" }}>
+            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: "#888", fontStyle: "italic" }}>
               No clients yet. Switch to Admin → Add Client to get started.
             </div>
           )}
