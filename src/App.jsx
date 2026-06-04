@@ -66,7 +66,7 @@ const inputStyle = {
 };
 const lbl = {
   fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase",
-  color: "#888", display: "block", marginBottom: 6,
+  color: "#888", display: "block", marginBottom: 6, textAlign: "left",
 };
 const btn = {
   background: "#1a1a1a", color: "#fff", border: "none", borderRadius: 3,
