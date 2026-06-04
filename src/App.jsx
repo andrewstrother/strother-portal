@@ -10,8 +10,10 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Routes, Route } from "react-router-dom";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
+import ClientPage from "./ClientPage.jsx";
 
 // ── Supabase REST client ──
 async function sb(path, options = {}) {
@@ -34,8 +36,8 @@ async function sb(path, options = {}) {
 }
 
 async function getClients() { return sb("clients?select=*&order=name.asc"); }
-async function addClient(name, since, email, phone) {
-  return sb("clients", { method: "POST", prefer: "return=representation", body: JSON.stringify({ name, since, email, phone, credits: 4 }) });
+async function addClient(name, since, email, phone, slug) {
+  return sb("clients", { method: "POST", prefer: "return=representation", body: JSON.stringify({ name, since, email, phone, credits: 4, ...(slug ? { slug } : {}) }) });
 }
 async function updateClient(clientId, patch) {
   return sb(`clients?id=eq.${clientId}`, { method: "PATCH", body: JSON.stringify(patch) });
@@ -208,8 +210,8 @@ export default function App() {
 
   const [logForm, setLogForm]             = useState({ description: "", credits: 1, date: "", galleryUrl: "" });
   const [creditAdjust, setCreditAdjust]   = useState(0);
-  const [newClientForm, setNewClientForm] = useState({ name: "", since: "", email: "", phone: "" });
-  const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "" });
+  const [newClientForm, setNewClientForm] = useState({ name: "", since: "", email: "", phone: "", slug: "" });
+  const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "", slug: "" });
   const [deleteConfirm, setDeleteConfirm]   = useState(false);
   const [ideaForm, setIdeaForm]           = useState({ title: "", body: "" });
   const [ideaNote, setIdeaNote]           = useState({});
@@ -239,7 +241,7 @@ export default function App() {
     if (!selected) return;
     getShoots(selected.id).then(d => setShoots(d || [])).catch(() => setShoots([]));
     getIdeas(selected.id).then(d => setIdeas(d || [])).catch(() => setIdeas([]));
-    setEditForm({ name: selected.name || "", since: selected.since || "", email: selected.email || "", phone: selected.phone || "" });
+    setEditForm({ name: selected.name || "", since: selected.since || "", email: selected.email || "", phone: selected.phone || "", slug: selected.slug || "" });
     setDeleteConfirm(false);
   }, [selected?.id]);
 
@@ -269,17 +271,23 @@ export default function App() {
 
   const handleAddClient = async () => {
     if (!newClientForm.name || !newClientForm.since) return;
+    if (newClientForm.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(newClientForm.slug)) {
+      showToast("Slug must be lowercase letters, numbers, and hyphens only"); return;
+    }
     try {
-      await addClient(newClientForm.name, newClientForm.since, newClientForm.email, newClientForm.phone);
+      await addClient(newClientForm.name, newClientForm.since, newClientForm.email, newClientForm.phone, newClientForm.slug);
       await loadClients();
-      setNewClientForm({ name: "", since: "", email: "", phone: "" });
+      setNewClientForm({ name: "", since: "", email: "", phone: "", slug: "" });
       showToast("Client added");
     } catch (e) { showToast("Error: " + e.message); }
   };
 
   const handleEditClient = async () => {
+    if (editForm.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(editForm.slug)) {
+      showToast("Slug must be lowercase letters, numbers, and hyphens only"); return;
+    }
     try {
-      await updateClient(selected.id, { name: editForm.name, since: editForm.since, email: editForm.email, phone: editForm.phone });
+      await updateClient(selected.id, { name: editForm.name, since: editForm.since, email: editForm.email, phone: editForm.phone, slug: editForm.slug || null });
       await loadClients();
       showToast("Client updated");
     } catch (e) { showToast("Error: " + e.message); }
@@ -326,7 +334,7 @@ export default function App() {
   const switchToAdmin = () => { if (adminUnlocked) { setMode("admin"); } else { setShowPin(true); } };
   const handleUnlock = () => { setAdminUnlocked(true); setShowPin(false); setMode("admin"); };
 
-  return (
+  const adminUI = (
     <div style={{ minHeight: "100vh", background: "#f5f5f3", fontFamily: "'Jost', sans-serif", color: "#1a1a1a" }}>
       <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
@@ -374,6 +382,9 @@ export default function App() {
                 <div style={{ fontSize: 11, color: "#666", fontWeight: 300 }}>
                   <span style={{ color: isActive ? "#1a1a1a" : "#999", fontWeight: 500 }}>{client.credits}</span> credits
                 </div>
+                {client.slug && (
+                  <div style={{ fontSize: 10, color: "#bbb", marginTop: 3, fontWeight: 300, letterSpacing: 0.3 }}>/{client.slug}</div>
+                )}
               </div>
             );
           })}
@@ -405,9 +416,14 @@ export default function App() {
                 <label style={lbl}>Email</label>
                 <input style={inputStyle} placeholder="client@example.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
               </div>
-              <div style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 18 }}>
                 <label style={lbl}>Phone</label>
                 <input style={inputStyle} placeholder="(555) 000-0000" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <label style={lbl}>Portal Slug <span style={{ fontWeight: 300, letterSpacing: 0, textTransform: "none", fontSize: 10 }}>(optional — lowercase, hyphens only)</span></label>
+                <input style={inputStyle} placeholder="e.g. nova-co" value={newClientForm.slug}
+                  onChange={e => setNewClientForm({ ...newClientForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} />
               </div>
               <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
                 New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
@@ -644,9 +660,24 @@ export default function App() {
                         <label style={lbl}>Email</label>
                         <input style={inputStyle} placeholder="client@example.com" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} />
                       </div>
-                      <div style={{ marginBottom: 24 }}>
+                      <div style={{ marginBottom: 18 }}>
                         <label style={lbl}>Phone</label>
                         <input style={inputStyle} placeholder="(555) 000-0000" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
+                      </div>
+                      <div style={{ marginBottom: 24 }}>
+                        <label style={lbl}>Portal Slug <span style={{ fontWeight: 300, letterSpacing: 0, textTransform: "none", fontSize: 10 }}>(lowercase, hyphens only)</span></label>
+                        <input style={inputStyle} placeholder="e.g. nova-co" value={editForm.slug}
+                          onChange={e => setEditForm({ ...editForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} />
+                        {editForm.slug && (
+                          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontSize: 11, color: "#888", fontWeight: 300 }}>clients.andrewstrother.com/{editForm.slug}</span>
+                            <button
+                              onClick={() => { navigator.clipboard.writeText(`https://clients.andrewstrother.com/${editForm.slug}`); showToast("URL copied"); }}
+                              style={{ background: "none", border: "1px solid #e2e2e0", borderRadius: 2, padding: "3px 10px", fontSize: 9, fontWeight: 500, letterSpacing: 1.5, textTransform: "uppercase", cursor: "pointer", color: "#888", fontFamily: "'Jost', sans-serif" }}>
+                              Copy
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <button onClick={handleEditClient} style={{ ...btn, marginBottom: 40 }}>Save Changes</button>
 
@@ -686,9 +717,14 @@ export default function App() {
                         <label style={lbl}>Email</label>
                         <input style={inputStyle} placeholder="client@example.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
                       </div>
-                      <div style={{ marginBottom: 24 }}>
+                      <div style={{ marginBottom: 18 }}>
                         <label style={lbl}>Phone</label>
                         <input style={inputStyle} placeholder="(555) 000-0000" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
+                      </div>
+                      <div style={{ marginBottom: 24 }}>
+                        <label style={lbl}>Portal Slug <span style={{ fontWeight: 300, letterSpacing: 0, textTransform: "none", fontSize: 10 }}>(optional — lowercase, hyphens only)</span></label>
+                        <input style={inputStyle} placeholder="e.g. nova-co" value={newClientForm.slug}
+                          onChange={e => setNewClientForm({ ...newClientForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} />
                       </div>
                       <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
                         New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
@@ -709,5 +745,12 @@ export default function App() {
         </main>
       </div>
     </div>
+  );
+
+  return (
+    <Routes>
+      <Route path="/" element={adminUI} />
+      <Route path="/:slug" element={<ClientPage />} />
+    </Routes>
   );
 }
