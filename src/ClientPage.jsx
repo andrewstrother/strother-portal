@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -46,17 +48,70 @@ const btn = {
   display: "block",
 };
 
-function Badge({ status }) {
+function Badge({ status, proposedDate }) {
   const m = {
     pending: ["#f5f5f3", "#d0d0cc", "#888", "Pending"],
     approved: ["#f0faf4", "#a8dab5", "#2d7a4f", "Approved"],
     rejected: ["#fdf2f2", "#f0b8b8", "#c0392b", "Declined"],
+    schedule_requested: ["#fdf6ee", "#f5d5a0", "#b5710a", null],
+    confirmed: ["#f0faf4", "#a8dab5", "#2d7a4f", "Confirmed"],
   };
   const [bg, border, color, label] = m[status] || m.pending;
+  const displayLabel = status === "schedule_requested"
+    ? `Schedule Requested${proposedDate ? ` — ${new Date(proposedDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}` : ""}`
+    : label;
   return (
     <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", background: bg, border: `1px solid ${border}`, color, padding: "3px 10px", borderRadius: 2 }}>
-      {label}
+      {displayLabel}
     </span>
+  );
+}
+
+function DatePickerInput({ value, onChange, placeholder = "Select a date" }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const selected = value ? new Date(value + "T00:00:00") : undefined;
+  const displayValue = selected
+    ? selected.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : "";
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleSelect = (date) => {
+    if (!date) return;
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    onChange(`${yyyy}-${mm}-${dd}`);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div onClick={() => setOpen(o => !o)}
+        style={{ ...inputStyle, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", userSelect: "none", color: displayValue ? "#1a1a1a" : "#bbb" }}>
+        <span>{displayValue || placeholder}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </div>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 100, background: "#fff", border: "1px solid #e2e2e0", borderRadius: 6, boxShadow: "0 8px 32px rgba(0,0,0,0.10)", padding: 8 }}>
+          <style>{`
+            .rdp { --rdp-accent-color: #1a1a1a; --rdp-background-color: #f5f5f3; font-family: 'Jost', sans-serif; margin: 0; }
+            .rdp-day_selected, .rdp-day_selected:hover { background-color: #1a1a1a; color: #fff; border-radius: 4px; }
+            .rdp-day:hover:not(.rdp-day_selected) { background-color: #f5f5f3; border-radius: 4px; }
+            .rdp-caption_label { font-family: 'Cormorant Garamond', serif; font-weight: 400; font-size: 17px; letter-spacing: 0.5px; }
+            .rdp-head_cell { font-family: 'Jost', sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: #bbb; }
+          `}</style>
+          <DayPicker mode="single" selected={selected} onSelect={handleSelect} defaultMonth={selected || new Date()} showOutsideDays />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -70,6 +125,8 @@ export default function ClientPage() {
   const [clientTab, setClientTab] = useState("overview");
   const [toast, setToast] = useState(null);
   const [ideaNote, setIdeaNote] = useState({});
+  const [scheduleOpen, setScheduleOpen] = useState({});
+  const [scheduleDate, setScheduleDate] = useState({});
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
 
@@ -99,6 +156,18 @@ export default function ClientPage() {
       const fresh = await getIdeas(client.id);
       setIdeas(fresh || []);
       showToast(action === "note" ? "Note saved" : `Idea ${action}`);
+    } catch (e) { showToast("Error: " + e.message); }
+  };
+
+  const handleRequestSchedule = async (idea) => {
+    const date = scheduleDate[idea.id];
+    if (!date) { showToast("Please select a date first"); return; }
+    try {
+      await updateIdea(idea.id, { status: "schedule_requested", proposed_date: date });
+      const fresh = await getIdeas(client.id);
+      setIdeas(fresh || []);
+      setScheduleOpen(o => ({ ...o, [idea.id]: false }));
+      showToast("Schedule request sent to Andrew");
     } catch (e) { showToast("Error: " + e.message); }
   };
 
@@ -261,7 +330,7 @@ export default function ClientPage() {
                         <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "#1a1a1a", marginBottom: 6 }}>{idea.title}</div>
                         {idea.body && <div style={{ fontSize: 13, color: "#666", lineHeight: 1.6, fontWeight: 300 }}>{idea.body}</div>}
                       </div>
-                      <Badge status={idea.status} />
+                      <Badge status={idea.status} proposedDate={idea.proposed_date} />
                     </div>
                     <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #f0f0ee" }}>
                       <label style={lbl}>Your Notes</label>
@@ -271,13 +340,35 @@ export default function ClientPage() {
                         style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
                     </div>
                     {idea.status === "pending" ? (
-                      <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
                         <button onClick={() => handleIdeaAction(idea, "approved")} style={{ ...btn, background: "#2d7a4f", padding: "8px 18px", fontSize: 9 }}>✓ Approve</button>
                         <button onClick={() => handleIdeaAction(idea, "rejected")} style={{ ...btn, background: "#c0392b", padding: "8px 18px", fontSize: 9 }}>✕ Decline</button>
+                        <button onClick={() => setScheduleOpen(o => ({ ...o, [idea.id]: !o[idea.id] }))} style={{ ...btn, background: "transparent", color: "#1a1a1a", border: "1px solid #1a1a1a", padding: "8px 18px", fontSize: 9 }}>Request to Schedule</button>
+                        <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Save Note</button>
+                      </div>
+                    ) : idea.status === "approved" ? (
+                      <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                        <button onClick={() => setScheduleOpen(o => ({ ...o, [idea.id]: !o[idea.id] }))} style={{ ...btn, background: "transparent", color: "#1a1a1a", border: "1px solid #1a1a1a", padding: "8px 18px", fontSize: 9 }}>Request to Schedule</button>
                         <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Save Note</button>
                       </div>
                     ) : (
                       <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9, marginTop: 12 }}>Save Note</button>
+                    )}
+                    {scheduleOpen[idea.id] && (
+                      <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #f0f0ee" }}>
+                        <label style={lbl}>Proposed shoot date</label>
+                        <div style={{ maxWidth: 280, marginBottom: 12 }}>
+                          <DatePickerInput
+                            value={scheduleDate[idea.id] || ""}
+                            onChange={val => setScheduleDate(d => ({ ...d, [idea.id]: val }))}
+                            placeholder="Select a date"
+                          />
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={() => handleRequestSchedule(idea)} style={{ ...btn, padding: "8px 18px", fontSize: 9 }}>Send Request</button>
+                          <button onClick={() => setScheduleOpen(o => ({ ...o, [idea.id]: false }))} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Cancel</button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ))}
