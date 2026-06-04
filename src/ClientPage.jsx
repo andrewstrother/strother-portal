@@ -111,6 +111,23 @@ export default function ClientPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f5f5f3", fontFamily: "'Jost', sans-serif", color: "#1a1a1a" }}>
       <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet" />
+      <style>{`
+        * { box-sizing: border-box; }
+        @media (max-width: 640px) {
+          html, body { overflow-x: hidden; }
+          .portal-header { padding: 0 20px !important; }
+          .portal-main { padding: 28px 20px !important; max-width: 100% !important; }
+          .portal-stats-grid { grid-template-columns: 1fr !important; }
+          .portal-hero { font-size: 32px !important; }
+          .portal-since { text-align: left !important; }
+          .portal-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .portal-tabs button { white-space: nowrap; flex-shrink: 0; }
+          .portal-shoot-row { flex-wrap: wrap; align-items: flex-start !important; gap: 12px !important; }
+          .portal-shoot-badge { flex-shrink: 0; }
+          .portal-idea-card-header { flex-wrap: wrap; gap: 10px !important; }
+          .portal-idea-actions { flex-wrap: wrap; }
+        }
+      `}</style>
 
       {toast && (
         <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: "#1a1a1a", color: "#fff", padding: "10px 24px", borderRadius: 3, fontSize: 12, letterSpacing: 1, zIndex: 500, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
@@ -119,7 +136,7 @@ export default function ClientPage() {
       )}
 
       {/* Header */}
-      <header style={{ background: "#fff", borderBottom: "1px solid #e2e2e0", padding: "0 48px", height: 60, display: "flex", alignItems: "center", position: "sticky", top: 0, zIndex: 20 }}>
+      <header className="portal-header" style={{ background: "#fff", borderBottom: "1px solid #e2e2e0", padding: "0 48px", height: 60, display: "flex", alignItems: "center", position: "sticky", top: 0, zIndex: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: 3, textTransform: "uppercase" }}>Andrew Strother</span>
           <span style={{ width: 1, height: 14, background: "#ccc" }} />
@@ -127,7 +144,7 @@ export default function ClientPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 900, margin: "0 auto", padding: "52px 64px" }}>
+      <main className="portal-main" style={{ maxWidth: 900, margin: "0 auto", padding: "52px 64px" }}>
 
         {/* Loading */}
         {loading && (
@@ -151,15 +168,15 @@ export default function ClientPage() {
         {/* Client view */}
         {!loading && client && (
           <>
-            <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 10 }}>
+            <div className="portal-since" style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 10 }}>
               Client since {client.since ? new Date(client.since + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}
             </div>
-            <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 52, margin: "0 0 28px", lineHeight: 1.05 }}>
+            <h1 className="portal-hero" style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 52, margin: "0 0 28px", lineHeight: 1.05 }}>
               {client.name}
             </h1>
 
             {/* Tabs */}
-            <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #e2e2e0", marginBottom: 36 }}>
+            <div className="portal-tabs" style={{ display: "flex", gap: 2, borderBottom: "1px solid #e2e2e0", marginBottom: 36 }}>
               {[["overview", "Overview"], ["ideas", `Content Ideas${pendingCount > 0 ? ` (${pendingCount})` : ""}`]].map(([tab, label]) => (
                 <button key={tab} onClick={() => setClientTab(tab)}
                   style={{ background: "none", border: "none", borderBottom: clientTab === tab ? "2px solid #1a1a1a" : "2px solid transparent", padding: "10px 18px", fontSize: 10, fontWeight: clientTab === tab ? 500 : 400, letterSpacing: 2, textTransform: "uppercase", color: clientTab === tab ? "#1a1a1a" : "#aaa", cursor: "pointer", fontFamily: "'Jost', sans-serif", marginBottom: -1 }}>
@@ -171,7 +188,7 @@ export default function ClientPage() {
             {/* Overview tab */}
             {clientTab === "overview" && (
               <>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 52 }}>
+                <div className="portal-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 52 }}>
                   <div style={{ background: "#1a1a1a", borderRadius: 3, padding: "28px 30px" }}>
                     <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 16 }}>Credits Available</div>
                     <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 72, fontWeight: 300, lineHeight: 1, color: "#fff" }}>{client.credits}</div>
@@ -205,7 +222,7 @@ export default function ClientPage() {
                       <div style={{ flex: 1, height: 1, background: "#e2e2e0" }} />
                     </div>
                     {items.map((item, idx) => (
-                      <div key={item.id} style={{ display: "flex", alignItems: "center", padding: "15px 0", borderBottom: idx < items.length - 1 ? "1px solid #eeeeec" : "none", gap: 20 }}>
+                      <div key={item.id} className="portal-shoot-row" style={{ display: "flex", alignItems: "center", padding: "15px 0", borderBottom: idx < items.length - 1 ? "1px solid #eeeeec" : "none", gap: 20 }}>
                         <div style={{ width: 30, height: 30, border: "1px solid #e2e2e0", borderRadius: 2, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "#fff" }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         </div>
@@ -221,7 +238,7 @@ export default function ClientPage() {
                             )}
                           </div>
                         </div>
-                        <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", border: "1px solid #1a1a1a", padding: "4px 11px", borderRadius: 2, flexShrink: 0 }}>
+                        <div className="portal-shoot-badge" style={{ fontSize: 10, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", border: "1px solid #1a1a1a", padding: "4px 11px", borderRadius: 2, flexShrink: 0 }}>
                           {item.credits} {item.credits === 1 ? "credit" : "credits"}
                         </div>
                       </div>
@@ -239,7 +256,7 @@ export default function ClientPage() {
                 )}
                 {ideas.map(idea => (
                   <div key={idea.id} style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "24px 28px", marginBottom: 16 }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 10 }}>
+                    <div className="portal-idea-card-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 10 }}>
                       <div>
                         <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "#1a1a1a", marginBottom: 6 }}>{idea.title}</div>
                         {idea.body && <div style={{ fontSize: 13, color: "#666", lineHeight: 1.6, fontWeight: 300 }}>{idea.body}</div>}
@@ -254,7 +271,7 @@ export default function ClientPage() {
                         style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
                     </div>
                     {idea.status === "pending" ? (
-                      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12 }}>
                         <button onClick={() => handleIdeaAction(idea, "approved")} style={{ ...btn, background: "#2d7a4f", padding: "8px 18px", fontSize: 9 }}>✓ Approve</button>
                         <button onClick={() => handleIdeaAction(idea, "rejected")} style={{ ...btn, background: "#c0392b", padding: "8px 18px", fontSize: 9 }}>✕ Decline</button>
                         <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Save Note</button>
