@@ -287,6 +287,9 @@ export default function App() {
   const [threadOpen, setThreadOpen] = useState({});
   const [comments, setComments] = useState({});
   const [commentDraft, setCommentDraft] = useState({});
+  const [shootEditOpen, setShootEditOpen] = useState({});
+  const [shootEditForm, setShootEditForm] = useState({});
+  const [shootDeleteConfirm, setShootDeleteConfirm] = useState({});
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
 
@@ -443,6 +446,39 @@ export default function App() {
       setIdeas(await getIdeas(selected.id));
       setIdeaDeleteConfirm(s => { const n = { ...s }; delete n[ideaId]; return n; });
       showToast("Idea deleted");
+    } catch (e) { showToast("Error: " + e.message); }
+  };
+
+  const handleOpenShootEdit = (shoot) => {
+    setShootEditForm(f => ({
+      ...f,
+      [shoot.id]: { description: shoot.description || "", date: shoot.date || "", credits: shoot.credits ?? 1, galleryUrl: shoot.gallery_url || "", notes: shoot.notes || "" },
+    }));
+    setShootEditOpen(s => ({ ...s, [shoot.id]: true }));
+  };
+
+  const handleSaveShootEdit = async (shoot) => {
+    const f = shootEditForm[shoot.id];
+    if (!f) return;
+    try {
+      const newMonth = f.date ? new Date(f.date + "T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" }) : shoot.month;
+      await updateShoot(shoot.id, { description: f.description, date: f.date, credits: Number(f.credits), month: newMonth, gallery_url: f.galleryUrl || null, notes: f.notes || null });
+      setShoots(await getShoots(selected.id));
+      setShootEditOpen(s => ({ ...s, [shoot.id]: false }));
+      showToast("Shoot updated");
+    } catch (e) { showToast("Error: " + e.message); }
+  };
+
+  const handleDeleteShoot = async (shoot, refund) => {
+    try {
+      await deleteShoot(shoot.id);
+      if (refund) {
+        await updateCredits(selected.id, selected.credits + shoot.credits);
+        await loadClients();
+      }
+      setShoots(await getShoots(selected.id));
+      setShootDeleteConfirm(s => { const n = { ...s }; delete n[shoot.id]; return n; });
+      showToast(refund ? `Shoot deleted — ${shoot.credits} credit${shoot.credits !== 1 ? "s" : ""} refunded` : "Shoot deleted");
     } catch (e) { showToast("Error: " + e.message); }
   };
 
@@ -711,7 +747,7 @@ export default function App() {
                   <div style={{ height: 1, background: "#e2e2e0", marginBottom: 32 }} />
 
                   <div className="portal-tabs" style={{ display: "flex", gap: 2, borderBottom: "1px solid #e2e2e0", marginBottom: 36 }}>
-                    {[["log","Log Shoot"],["credits","Adjust Credits"],["ideas","Content Ideas"],["edit","Edit Client"],["clients","Add Client"]].map(([tab, label]) => (
+                    {[["log","Log Shoot"],["shoots","Shoots"],["credits","Adjust Credits"],["ideas","Content Ideas"],["edit","Edit Client"],["clients","Add Client"]].map(([tab, label]) => (
                       <button key={tab} onClick={() => setAdminTab(tab)} style={{ background: "none", border: "none", borderBottom: adminTab === tab ? "2px solid #1a1a1a" : "2px solid transparent", padding: "10px 18px", fontSize: 10, fontWeight: adminTab === tab ? 500 : 400, letterSpacing: 2, textTransform: "uppercase", color: adminTab === tab ? "#1a1a1a" : "#aaa", cursor: "pointer", fontFamily: "'Jost', sans-serif", marginBottom: -1 }}>
                         {label}
                       </button>
@@ -747,6 +783,94 @@ export default function App() {
                         Deducts <strong style={{ color: "#1a1a1a" }}>{logForm.credits} credit{logForm.credits !== 1 ? "s" : ""}</strong> from <strong style={{ color: "#1a1a1a" }}>{selected.name}</strong> — leaving <strong style={{ color: "#1a1a1a" }}>{Math.max(0, selected.credits - Number(logForm.credits))}</strong> remaining.
                       </div>
                       <button onClick={handleLogShoot} style={btn}>Log Shoot</button>
+                    </div>
+                  )}
+
+                  {adminTab === "shoots" && (
+                    <div className="portal-admin-form" style={{ maxWidth: 680 }}>
+                      {shoots.length === 0 && <div style={{ fontSize: 14, color: "#888", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>No shoots logged yet.</div>}
+                      {Object.entries(grouped).map(([month, items]) => (
+                        <div key={month} style={{ marginBottom: 36 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 4 }}>
+                            <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase" }}>{month}</span>
+                            <div style={{ flex: 1, height: 1, background: "#e2e2e0" }} />
+                          </div>
+                          {items.map((item, idx) => (
+                            <div key={item.id}>
+                              <div style={{ display: "flex", alignItems: "center", padding: "15px 0", borderBottom: !shootEditOpen[item.id] && idx < items.length - 1 ? "1px solid #eeeeec" : "none", gap: 16, textAlign: "left" }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 400, color: "#1a1a1a" }}>{item.description}</div>
+                                  <div style={{ fontSize: 11, color: "#888", marginTop: 3, fontWeight: 300, display: "flex", alignItems: "center", gap: 12 }}>
+                                    <span>{item.date ? new Date(item.date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}</span>
+                                    {item.gallery_url && (
+                                      <a href={item.gallery_url} target="_blank" rel="noopener noreferrer"
+                                        style={{ fontSize: 10, fontWeight: 500, letterSpacing: 1.5, textTransform: "uppercase", color: "#1a1a1a", textDecoration: "none", borderBottom: "1px solid #1a1a1a", paddingBottom: 1 }}>
+                                        View Gallery →
+                                      </a>
+                                    )}
+                                  </div>
+                                  {item.notes && <div style={{ fontSize: 11, color: "#aaa", marginTop: 4, fontWeight: 300, fontStyle: "italic" }}>{item.notes}</div>}
+                                </div>
+                                <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", border: "1px solid #1a1a1a", padding: "4px 11px", borderRadius: 2, flexShrink: 0, whiteSpace: "nowrap" }}>
+                                  −{item.credits} {item.credits === 1 ? "credit" : "credits"}
+                                </div>
+                                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                                  <button onClick={() => shootEditOpen[item.id] ? setShootEditOpen(s => ({ ...s, [item.id]: false })) : handleOpenShootEdit(item)}
+                                    style={{ ...btn, background: "transparent", color: "#1a1a1a", border: "1px solid #1a1a1a", padding: "5px 12px", fontSize: 9 }}>
+                                    {shootEditOpen[item.id] ? "Cancel" : "Edit"}
+                                  </button>
+                                  <button onClick={() => setShootDeleteConfirm(s => ({ ...s, [item.id]: true }))}
+                                    style={{ ...btn, background: "transparent", color: "#c0392b", border: "1px solid #c0392b", padding: "5px 12px", fontSize: 9 }}>
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                              {shootEditOpen[item.id] && shootEditForm[item.id] && (
+                                <div style={{ padding: "18px 20px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: idx < items.length - 1 ? 0 : 0, borderTop: "none" }}>
+                                  <div style={{ marginBottom: 14 }}>
+                                    <label style={lbl}>Description</label>
+                                    <input style={inputStyle} value={shootEditForm[item.id].description} onChange={e => setShootEditForm(f => ({ ...f, [item.id]: { ...f[item.id], description: e.target.value } }))} />
+                                  </div>
+                                  <div className="portal-date-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 14 }}>
+                                    <div>
+                                      <label style={lbl}>Date</label>
+                                      <DatePickerInput value={shootEditForm[item.id].date} onChange={val => setShootEditForm(f => ({ ...f, [item.id]: { ...f[item.id], date: val } }))} placeholder="Select date" />
+                                    </div>
+                                    <div>
+                                      <label style={lbl}>Credits Used</label>
+                                      <input type="number" min="1" max="12" style={inputStyle} value={shootEditForm[item.id].credits} onChange={e => setShootEditForm(f => ({ ...f, [item.id]: { ...f[item.id], credits: Number(e.target.value) } }))} />
+                                    </div>
+                                  </div>
+                                  <div style={{ marginBottom: 14 }}>
+                                    <label style={lbl}>Gallery Link <span style={{ fontWeight: 300, letterSpacing: 0, textTransform: "none", fontSize: 10 }}>(optional)</span></label>
+                                    <input style={inputStyle} placeholder="https://…" value={shootEditForm[item.id].galleryUrl} onChange={e => setShootEditForm(f => ({ ...f, [item.id]: { ...f[item.id], galleryUrl: e.target.value } }))} />
+                                  </div>
+                                  <div style={{ marginBottom: 16 }}>
+                                    <label style={lbl}>Internal Notes <span style={{ fontWeight: 300, letterSpacing: 0, textTransform: "none", fontSize: 10 }}>(admin only, optional)</span></label>
+                                    <textarea rows={2} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} value={shootEditForm[item.id].notes} onChange={e => setShootEditForm(f => ({ ...f, [item.id]: { ...f[item.id], notes: e.target.value } }))} />
+                                  </div>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button onClick={() => handleSaveShootEdit(item)} style={{ ...btn, padding: "8px 18px", fontSize: 9 }}>Save Changes</button>
+                                    <button onClick={() => setShootEditOpen(s => ({ ...s, [item.id]: false }))} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Cancel</button>
+                                  </div>
+                                </div>
+                              )}
+                              {shootDeleteConfirm[item.id] && (
+                                <div style={{ padding: "16px 20px", background: "#fdf2f2", border: "1px solid #f0b8b8", borderRadius: 3, marginBottom: 4 }}>
+                                  <div style={{ fontSize: 13, color: "#c0392b", marginBottom: 14, lineHeight: 1.5 }}>
+                                    Refund <strong>{item.credits} credit{item.credits !== 1 ? "s" : ""}</strong> to <strong>{selected.name}</strong>?
+                                  </div>
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    <button onClick={() => handleDeleteShoot(item, true)} style={{ ...btn, background: "#2d7a4f", padding: "7px 16px", fontSize: 9 }}>Yes — Refund &amp; Delete</button>
+                                    <button onClick={() => handleDeleteShoot(item, false)} style={{ ...btn, background: "#c0392b", padding: "7px 16px", fontSize: 9 }}>No — Just Delete</button>
+                                    <button onClick={() => setShootDeleteConfirm(s => ({ ...s, [item.id]: false }))} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "7px 16px", fontSize: 9 }}>Cancel</button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
                     </div>
                   )}
 
