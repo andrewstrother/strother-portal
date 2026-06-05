@@ -61,6 +61,9 @@ async function addIdea(clientId, title, body) {
 async function updateIdea(ideaId, patch) {
   return sb(`content_ideas?id=eq.${ideaId}`, { method: "PATCH", body: JSON.stringify(patch) });
 }
+async function deleteIdea(ideaId) {
+  return sb(`content_ideas?id=eq.${ideaId}`, { method: "DELETE" });
+}
 
 // ── Shared styles ──
 const inputStyle = {
@@ -226,6 +229,7 @@ export default function App() {
   const [deleteConfirm, setDeleteConfirm]   = useState(false);
   const [ideaForm, setIdeaForm]           = useState({ title: "", body: "" });
   const [ideaNote, setIdeaNote]           = useState({});
+  const [ideaDeleteConfirm, setIdeaDeleteConfirm] = useState({});
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
 
@@ -335,6 +339,15 @@ export default function App() {
       await updateIdea(idea.id, { schedule_confirmed: true, status: "confirmed" });
       setIdeas(await getIdeas(selected.id));
       showToast("Shoot confirmed");
+    } catch (e) { showToast("Error: " + e.message); }
+  };
+
+  const handleDeleteIdea = async (ideaId) => {
+    try {
+      await deleteIdea(ideaId);
+      setIdeas(await getIdeas(selected.id));
+      setIdeaDeleteConfirm(s => { const n = { ...s }; delete n[ideaId]; return n; });
+      showToast("Idea deleted");
     } catch (e) { showToast("Error: " + e.message); }
   };
 
@@ -681,6 +694,22 @@ export default function App() {
                               <button onClick={() => handleConfirmShoot(idea)} style={{ ...btn, background: "#2d7a4f", padding: "8px 18px", fontSize: 9 }}>✓ Confirm Shoot</button>
                             </div>
                           )}
+                          <div style={{ marginTop: 12 }}>
+                            {!ideaDeleteConfirm[idea.id] ? (
+                              <button onClick={() => setIdeaDeleteConfirm(s => ({ ...s, [idea.id]: true }))}
+                                style={{ ...btn, background: "transparent", color: "#c0392b", border: "1px solid #c0392b", padding: "6px 14px", fontSize: 9 }}>
+                                Delete
+                              </button>
+                            ) : (
+                              <div style={{ background: "#fdf2f2", border: "1px solid #f0b8b8", borderRadius: 3, padding: "12px 16px" }}>
+                                <div style={{ fontSize: 12, color: "#c0392b", marginBottom: 10 }}>Delete this idea? This cannot be undone.</div>
+                                <div style={{ display: "flex", gap: 8 }}>
+                                  <button onClick={() => handleDeleteIdea(idea.id)} style={{ ...btn, background: "#c0392b", padding: "6px 14px", fontSize: 9 }}>Yes, Delete</button>
+                                  <button onClick={() => setIdeaDeleteConfirm(s => ({ ...s, [idea.id]: false }))} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "6px 14px", fontSize: 9 }}>Cancel</button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
