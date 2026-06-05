@@ -783,12 +783,12 @@ export default function App() {
                       <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 20 }}>Submitted Ideas</div>
                       {ideas.length === 0 && <div style={{ fontSize: 14, color: "#888", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>None yet.</div>}
                       {ideas.map(idea => (
-                        <div key={idea.id} style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "20px 24px", marginBottom: 12 }}>
+                        <div key={idea.id} style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "20px 24px", marginBottom: 12, textAlign: "left" }}>
                           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
-                            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 19, fontWeight: 400, color: "#1a1a1a" }}>{idea.title}</div>
+                            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 19, fontWeight: 400, color: "#1a1a1a", textAlign: "left" }}>{idea.title}</div>
                             <Badge status={idea.status} proposedDate={idea.proposed_date} />
                           </div>
-                          {idea.body && <div style={{ fontSize: 12, color: "#888", lineHeight: 1.6, marginBottom: 8 }}>{idea.body}</div>}
+                          {idea.body && <div style={{ fontSize: 12, color: "#888", lineHeight: 1.6, marginBottom: 8, textAlign: "left" }}>{idea.body}</div>}
                           {idea.proposed_date && idea.status === "schedule_requested" && (
                             <div style={{ fontSize: 12, color: "#b5710a", marginBottom: 8, fontWeight: 500 }}>
                               Proposed: {new Date(idea.proposed_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
