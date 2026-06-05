@@ -6,7 +6,7 @@ const PAGE_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Unsubscribed · Andrew Strother</title>
+  <title>Unsubscribed · Andrew Strother Photography</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,7 +23,7 @@ const PAGE_HTML = `<!DOCTYPE html>
 </head>
 <body>
   <div class="card">
-    <div class="brand">Andrew Strother <span>| Client Portal</span></div>
+    <div class="brand">Andrew Strother Photography <span>| Client Portal</span></div>
     <div class="divider"></div>
     <h1>You've been unsubscribed.</h1>
     <p>You'll no longer receive email notifications from the client portal. You can still access your portal at any time via your direct link.</p>

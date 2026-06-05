@@ -40,7 +40,7 @@ function buildEmail({ subject, heading, rows, cta }) {
         <!-- Header -->
         <tr>
           <td style="padding-bottom:28px;">
-            <span style="font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#1a1a1a;font-family:Helvetica Neue,Arial,sans-serif;">ANDREW STROTHER</span>
+            <span style="font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#1a1a1a;font-family:Helvetica Neue,Arial,sans-serif;">ANDREW STROTHER PHOTOGRAPHY</span>
             <span style="font-size:11px;color:#ccc;margin:0 8px;">|</span>
             <span style="font-size:11px;font-weight:300;letter-spacing:2px;text-transform:uppercase;color:#999;font-family:Helvetica Neue,Arial,sans-serif;">Client Portal</span>
           </td>

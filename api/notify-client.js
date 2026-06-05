@@ -40,7 +40,7 @@ function buildEmail({ subject, heading, rows, cta, unsubscribeUrl }) {
         <!-- Header -->
         <tr>
           <td style="padding-bottom:28px;">
-            <span style="font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#1a1a1a;font-family:Helvetica Neue,Arial,sans-serif;">ANDREW STROTHER</span>
+            <span style="font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#1a1a1a;font-family:Helvetica Neue,Arial,sans-serif;">ANDREW STROTHER PHOTOGRAPHY</span>
             <span style="font-size:11px;color:#ccc;margin:0 8px;">|</span>
             <span style="font-size:11px;font-weight:300;letter-spacing:2px;text-transform:uppercase;color:#999;font-family:Helvetica Neue,Arial,sans-serif;">Client Portal</span>
           </td>
@@ -60,7 +60,7 @@ function buildEmail({ subject, heading, rows, cta, unsubscribeUrl }) {
         <!-- Footer -->
         <tr>
           <td style="padding-top:24px;font-size:11px;color:#bbb;font-family:Helvetica Neue,Arial,sans-serif;text-align:center;line-height:1.6;">
-            You're receiving this because you're a retainer client of Andrew Strother.<br>
+            You're receiving this because you're a retainer client of Andrew Strother Photography.<br>
             <a href="${unsubscribeUrl}" style="color:#bbb;">Unsubscribe from portal notifications</a>
           </td>
         </tr>
@@ -170,7 +170,7 @@ export default async function handler(req, res) {
 
       await sendEmail({
         to: client.email,
-        subject: `Shoot confirmed${dateStr ? ` — ${dateStr}` : ""} · Andrew Strother`,
+        subject: `Shoot confirmed${dateStr ? ` — ${dateStr}` : ""} · Andrew Strother Photography`,
         html,
       });
       return res.status(200).json({ sent: true });

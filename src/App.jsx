@@ -237,7 +237,7 @@ function PinGate({ onUnlock, onCancel }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(245,245,243,0.96)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, fontFamily: "'Jost', sans-serif" }}>
       <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 4, padding: "48px 52px", width: 320, textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.08)" }}>
         <div style={{ fontSize: 10, letterSpacing: 3, textTransform: "uppercase", color: "#888", marginBottom: 8 }}>Admin Access</div>
-        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, color: "#1a1a1a", marginBottom: 32 }}>Andrew Strother</div>
+        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, fontWeight: 300, color: "#1a1a1a", marginBottom: 32 }}>Andrew Strother Photography</div>
         <input
           type="password" placeholder="Enter PIN" value={pin} autoFocus
           onChange={e => setPin(e.target.value)}
@@ -485,7 +485,7 @@ export default function App() {
       {/* Header */}
       <header className="portal-header" style={{ background: "#fff", borderBottom: "1px solid #e2e2e0", padding: "0 48px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: 3, textTransform: "uppercase" }}>Andrew Strother</span>
+          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: 3, textTransform: "uppercase" }}>Andrew Strother Photography</span>
           <span style={{ width: 1, height: 14, background: "#ccc" }} />
           <span style={{ fontSize: 11, fontWeight: 300, letterSpacing: 2, textTransform: "uppercase", color: "#999" }}>Client Portal</span>
         </div>
