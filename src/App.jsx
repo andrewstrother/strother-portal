@@ -51,8 +51,14 @@ async function updateCredits(clientId, credits) {
   return sb(`clients?id=eq.${clientId}`, { method: "PATCH", body: JSON.stringify({ credits }) });
 }
 async function getShoots(clientId) { return sb(`shoots?client_id=eq.${clientId}&order=date.desc`); }
-async function addShoot(clientId, description, date, credits, month, galleryUrl) {
-  return sb("shoots", { method: "POST", body: JSON.stringify({ client_id: clientId, description, date, credits, month, gallery_url: galleryUrl }) });
+async function addShoot(clientId, description, date, credits, month, galleryUrl, notes) {
+  return sb("shoots", { method: "POST", body: JSON.stringify({ client_id: clientId, description, date, credits, month, gallery_url: galleryUrl, notes: notes || null }) });
+}
+async function updateShoot(shootId, patch) {
+  return sb(`shoots?id=eq.${shootId}`, { method: "PATCH", body: JSON.stringify(patch) });
+}
+async function deleteShoot(shootId) {
+  return sb(`shoots?id=eq.${shootId}`, { method: "DELETE" });
 }
 async function getIdeas(clientId) { return sb(`content_ideas?client_id=eq.${clientId}&order=created_at.desc`); }
 async function addIdea(clientId, title, body) {
@@ -268,7 +274,7 @@ export default function App() {
   const [clientTab, setClientTab] = useState("overview");
   const [toast, setToast]         = useState(null);
 
-  const [logForm, setLogForm]             = useState({ description: "", credits: 1, date: "", galleryUrl: "" });
+  const [logForm, setLogForm]             = useState({ description: "", credits: 1, date: "", galleryUrl: "", notes: "" });
   const [creditAdjust, setCreditAdjust]   = useState(0);
   const [newClientForm, setNewClientForm] = useState({ name: "", since: "", email: "", phone: "", slug: "" });
   const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "", slug: "", notifications_enabled: true });
@@ -315,11 +321,11 @@ export default function App() {
     if (!logForm.description || !logForm.date) return;
     try {
       const shootMonth = logForm.date ? new Date(logForm.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
-      await addShoot(selected.id, logForm.description, logForm.date, Number(logForm.credits), shootMonth, logForm.galleryUrl);
+      await addShoot(selected.id, logForm.description, logForm.date, Number(logForm.credits), shootMonth, logForm.galleryUrl, logForm.notes);
       await updateCredits(selected.id, Math.max(0, selected.credits - Number(logForm.credits)));
       await loadClients();
       setShoots(await getShoots(selected.id));
-      setLogForm({ description: "", credits: 1, date: "", galleryUrl: "" });
+      setLogForm({ description: "", credits: 1, date: "", galleryUrl: "", notes: "" });
       showToast("Shoot logged");
     } catch (e) { showToast("Error: " + e.message); }
   };
@@ -732,6 +738,10 @@ export default function App() {
                       <div style={{ marginBottom: 18 }}>
                         <label style={lbl}>Gallery Link <span style={{ fontWeight: 300, letterSpacing: 0, textTransform: "none", fontSize: 10 }}>(optional)</span></label>
                         <input style={inputStyle} placeholder="https://gallery.andrewstrother.com/..." value={logForm.galleryUrl} onChange={e => setLogForm({ ...logForm, galleryUrl: e.target.value })} />
+                      </div>
+                      <div style={{ marginBottom: 18 }}>
+                        <label style={lbl}>Internal Notes <span style={{ fontWeight: 300, letterSpacing: 0, textTransform: "none", fontSize: 10 }}>(admin only, optional)</span></label>
+                        <textarea rows={2} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} placeholder="e.g. client arrived late, resched from March…" value={logForm.notes} onChange={e => setLogForm({ ...logForm, notes: e.target.value })} />
                       </div>
                       <div style={{ padding: "13px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888", lineHeight: 1.5 }}>
                         Deducts <strong style={{ color: "#1a1a1a" }}>{logForm.credits} credit{logForm.credits !== 1 ? "s" : ""}</strong> from <strong style={{ color: "#1a1a1a" }}>{selected.name}</strong> — leaving <strong style={{ color: "#1a1a1a" }}>{Math.max(0, selected.credits - Number(logForm.credits))}</strong> remaining.
