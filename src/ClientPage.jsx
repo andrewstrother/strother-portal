@@ -378,11 +378,8 @@ export default function ClientPage() {
                       <div style={{ flex: 1, height: 1, background: "#e2e2e0" }} />
                     </div>
                     {items.map((item, idx) => (
-                      <div key={item.id} className="portal-shoot-row" style={{ display: "flex", alignItems: "center", padding: "15px 0", borderBottom: idx < items.length - 1 ? "1px solid #eeeeec" : "none", gap: 20 }}>
-                        <div style={{ width: 30, height: 30, border: "1px solid #e2e2e0", borderRadius: 2, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "#fff" }}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                        </div>
-                        <div style={{ flex: 1 }}>
+                      <div key={item.id} className="portal-shoot-row" style={{ display: "flex", alignItems: "center", padding: "15px 0", borderBottom: idx < items.length - 1 ? "1px solid #eeeeec" : "none", gap: 20, textAlign: "left" }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 400, color: "#1a1a1a" }}>{item.description}</div>
                           <div style={{ fontSize: 11, color: "#888", marginTop: 3, fontWeight: 300, display: "flex", alignItems: "center", gap: 12 }}>
                             <span>{item.date ? new Date(item.date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}</span>
@@ -394,8 +391,8 @@ export default function ClientPage() {
                             )}
                           </div>
                         </div>
-                        <div className="portal-shoot-badge" style={{ fontSize: 10, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", border: "1px solid #1a1a1a", padding: "4px 11px", borderRadius: 2, flexShrink: 0 }}>
-                          {item.credits} {item.credits === 1 ? "credit" : "credits"}
+                        <div className="portal-shoot-badge" style={{ fontSize: 10, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", border: "1px solid #1a1a1a", padding: "4px 11px", borderRadius: 2, flexShrink: 0, whiteSpace: "nowrap" }}>
+                          −{item.credits} {item.credits === 1 ? "credit" : "credits"}
                         </div>
                       </div>
                     ))}
