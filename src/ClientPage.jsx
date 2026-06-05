@@ -127,6 +127,8 @@ export default function ClientPage() {
   const [ideaNote, setIdeaNote] = useState({});
   const [scheduleOpen, setScheduleOpen] = useState({});
   const [scheduleDate, setScheduleDate] = useState({});
+  const [declineOpen, setDeclineOpen] = useState({});
+  const [declineReason, setDeclineReason] = useState({});
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
 
@@ -156,6 +158,17 @@ export default function ClientPage() {
       const fresh = await getIdeas(client.id);
       setIdeas(fresh || []);
       showToast(action === "note" ? "Note saved" : `Idea ${action}`);
+    } catch (e) { showToast("Error: " + e.message); }
+  };
+
+  const handleDeclineIdea = async (idea) => {
+    const reason = declineReason[idea.id] ?? "";
+    try {
+      await updateIdea(idea.id, { status: "rejected", decline_reason: reason || null });
+      const fresh = await getIdeas(client.id);
+      setIdeas(fresh || []);
+      setDeclineOpen(s => ({ ...s, [idea.id]: false }));
+      showToast("Idea declined");
     } catch (e) { showToast("Error: " + e.message); }
   };
 
@@ -340,12 +353,27 @@ export default function ClientPage() {
                         style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5, textAlign: "left" }} />
                     </div>
                     {idea.status === "pending" ? (
-                      <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                        <button onClick={() => handleIdeaAction(idea, "approved")} style={{ ...btn, background: "#2d7a4f", padding: "8px 18px", fontSize: 9 }}>✓ Approve</button>
-                        <button onClick={() => handleIdeaAction(idea, "rejected")} style={{ ...btn, background: "#c0392b", padding: "8px 18px", fontSize: 9 }}>✕ Decline</button>
-                        <button onClick={() => setScheduleOpen(o => ({ ...o, [idea.id]: !o[idea.id] }))} style={{ ...btn, background: "transparent", color: "#1a1a1a", border: "1px solid #1a1a1a", padding: "8px 18px", fontSize: 9 }}>Request to Schedule</button>
-                        <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Save Note</button>
-                      </div>
+                      <>
+                        <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                          <button onClick={() => handleIdeaAction(idea, "approved")} style={{ ...btn, background: "#2d7a4f", padding: "8px 18px", fontSize: 9 }}>✓ Approve</button>
+                          <button onClick={() => setDeclineOpen(s => ({ ...s, [idea.id]: !s[idea.id] }))} style={{ ...btn, background: "#c0392b", padding: "8px 18px", fontSize: 9 }}>✕ Decline</button>
+                          <button onClick={() => setScheduleOpen(o => ({ ...o, [idea.id]: !o[idea.id] }))} style={{ ...btn, background: "transparent", color: "#1a1a1a", border: "1px solid #1a1a1a", padding: "8px 18px", fontSize: 9 }}>Request to Schedule</button>
+                          <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Save Note</button>
+                        </div>
+                        {declineOpen[idea.id] && (
+                          <div style={{ marginTop: 14, padding: "16px 18px", background: "#fdf2f2", border: "1px solid #f0b8b8", borderRadius: 3 }}>
+                            <label style={{ ...lbl, color: "#c0392b" }}>Would you like to explain why? (optional)</label>
+                            <textarea rows={2} placeholder="Share any feedback…"
+                              value={declineReason[idea.id] ?? ""}
+                              onChange={e => setDeclineReason(r => ({ ...r, [idea.id]: e.target.value }))}
+                              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5, marginBottom: 10, textAlign: "left" }} />
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <button onClick={() => handleDeclineIdea(idea)} style={{ ...btn, background: "#c0392b", padding: "8px 18px", fontSize: 9 }}>Confirm Decline</button>
+                              <button onClick={() => setDeclineOpen(s => ({ ...s, [idea.id]: false }))} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Cancel</button>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     ) : idea.status === "approved" ? (
                       <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
                         <button onClick={() => setScheduleOpen(o => ({ ...o, [idea.id]: !o[idea.id] }))} style={{ ...btn, background: "transparent", color: "#1a1a1a", border: "1px solid #1a1a1a", padding: "8px 18px", fontSize: 9 }}>Request to Schedule</button>

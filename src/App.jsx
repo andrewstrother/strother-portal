@@ -230,6 +230,8 @@ export default function App() {
   const [ideaForm, setIdeaForm]           = useState({ title: "", body: "" });
   const [ideaNote, setIdeaNote]           = useState({});
   const [ideaDeleteConfirm, setIdeaDeleteConfirm] = useState({});
+  const [declineOpen, setDeclineOpen] = useState({});
+  const [declineReason, setDeclineReason] = useState({});
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
 
@@ -339,6 +341,16 @@ export default function App() {
       await updateIdea(idea.id, { schedule_confirmed: true, status: "confirmed" });
       setIdeas(await getIdeas(selected.id));
       showToast("Shoot confirmed");
+    } catch (e) { showToast("Error: " + e.message); }
+  };
+
+  const handleDeclineIdea = async (idea) => {
+    const reason = declineReason[idea.id] ?? "";
+    try {
+      await updateIdea(idea.id, { status: "rejected", decline_reason: reason || null });
+      setIdeas(await getIdeas(selected.id));
+      setDeclineOpen(s => ({ ...s, [idea.id]: false }));
+      showToast("Idea declined");
     } catch (e) { showToast("Error: " + e.message); }
   };
 
@@ -571,11 +583,26 @@ export default function App() {
                               style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
                           </div>
                           {idea.status === "pending" ? (
-                            <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                              <button onClick={() => handleIdeaAction(idea, "approved")} style={{ ...btn, background: "#2d7a4f", padding: "8px 18px", fontSize: 9 }}>✓ Approve</button>
-                              <button onClick={() => handleIdeaAction(idea, "rejected")} style={{ ...btn, background: "#c0392b", padding: "8px 18px", fontSize: 9 }}>✕ Decline</button>
-                              <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Save Note</button>
-                            </div>
+                            <>
+                              <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                                <button onClick={() => handleIdeaAction(idea, "approved")} style={{ ...btn, background: "#2d7a4f", padding: "8px 18px", fontSize: 9 }}>✓ Approve</button>
+                                <button onClick={() => setDeclineOpen(s => ({ ...s, [idea.id]: !s[idea.id] }))} style={{ ...btn, background: "#c0392b", padding: "8px 18px", fontSize: 9 }}>✕ Decline</button>
+                                <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Save Note</button>
+                              </div>
+                              {declineOpen[idea.id] && (
+                                <div style={{ marginTop: 14, padding: "16px 18px", background: "#fdf2f2", border: "1px solid #f0b8b8", borderRadius: 3 }}>
+                                  <label style={{ ...lbl, color: "#c0392b" }}>Would you like to explain why? (optional)</label>
+                                  <textarea rows={2} placeholder="Share any feedback…"
+                                    value={declineReason[idea.id] ?? ""}
+                                    onChange={e => setDeclineReason(r => ({ ...r, [idea.id]: e.target.value }))}
+                                    style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5, marginBottom: 10 }} />
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button onClick={() => handleDeclineIdea(idea)} style={{ ...btn, background: "#c0392b", padding: "8px 18px", fontSize: 9 }}>Confirm Decline</button>
+                                    <button onClick={() => setDeclineOpen(s => ({ ...s, [idea.id]: false }))} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Cancel</button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           ) : (
                             <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9, marginTop: 12 }}>Save Note</button>
                           )}
@@ -687,6 +714,12 @@ export default function App() {
                             <div style={{ marginTop: 10, padding: "10px 14px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, fontSize: 12, color: "#666", lineHeight: 1.5 }}>
                               <span style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#888", display: "block", marginBottom: 4 }}>Client note</span>
                               {idea.client_note}
+                            </div>
+                          )}
+                          {idea.status === "rejected" && idea.decline_reason && (
+                            <div style={{ marginTop: 10, padding: "10px 14px", background: "#fdf2f2", border: "1px solid #f0b8b8", borderRadius: 3, fontSize: 12, color: "#c0392b", lineHeight: 1.5 }}>
+                              <span style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#c0392b", display: "block", marginBottom: 4 }}>Decline reason</span>
+                              {idea.decline_reason}
                             </div>
                           )}
                           {idea.status === "schedule_requested" && (
