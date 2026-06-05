@@ -31,6 +31,12 @@ async function getIdeas(clientId) { return sb(`content_ideas?client_id=eq.${clie
 async function updateIdea(ideaId, patch) {
   return sb(`content_ideas?id=eq.${ideaId}`, { method: "PATCH", body: JSON.stringify(patch) });
 }
+async function getComments(ideaId) {
+  return sb(`idea_comments?idea_id=eq.${ideaId}&order=created_at.asc`);
+}
+async function addComment(ideaId, author, content) {
+  return sb("idea_comments", { method: "POST", body: JSON.stringify({ idea_id: ideaId, author, content }) });
+}
 
 const inputStyle = {
   width: "100%", border: "1px solid #e2e2e0", borderRadius: 3, padding: "9px 12px",
@@ -47,6 +53,46 @@ const btn = {
   textTransform: "uppercase", cursor: "pointer", fontFamily: "'Jost', sans-serif",
   display: "block",
 };
+
+function formatCommentTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " at " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+function CommentThread({ comments, draft, onDraftChange, onSend }) {
+  return (
+    <div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: comments.length ? 14 : 0 }}>
+        {comments.map(c => {
+          const isAndrew = c.author === "andrew";
+          return (
+            <div key={c.id} style={{ display: "flex", flexDirection: "column", alignItems: isAndrew ? "flex-end" : "flex-start" }}>
+              <div style={{
+                maxWidth: "78%", padding: "9px 13px", borderRadius: 8, lineHeight: 1.5, fontSize: 13,
+                background: isAndrew ? "#1a1a1a" : "#fff",
+                color: isAndrew ? "#fff" : "#1a1a1a",
+                border: isAndrew ? "none" : "1px solid #e2e2e0",
+                fontWeight: 300,
+              }}>{c.content}</div>
+              <div style={{ fontSize: 10, color: "#bbb", marginTop: 3, fontWeight: 300 }}>{formatCommentTime(c.created_at)}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+        <textarea rows={2} placeholder="Write a message…"
+          value={draft}
+          onChange={e => onDraftChange(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSend(); }}
+          style={{ flex: 1, border: "1px solid #e2e2e0", borderRadius: 3, padding: "8px 10px", fontSize: 13, fontFamily: "'Jost', sans-serif", color: "#1a1a1a", background: "#fff", outline: "none", boxSizing: "border-box", resize: "none", lineHeight: 1.5, textAlign: "left" }} />
+        <button onClick={onSend}
+          style={{ background: "#1a1a1a", color: "#fff", border: "none", borderRadius: 3, padding: "9px 16px", fontSize: 9, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", cursor: "pointer", fontFamily: "'Jost', sans-serif", flexShrink: 0 }}>
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Badge({ status, proposedDate }) {
   const m = {
@@ -129,6 +175,9 @@ export default function ClientPage() {
   const [scheduleDate, setScheduleDate] = useState({});
   const [declineOpen, setDeclineOpen] = useState({});
   const [declineReason, setDeclineReason] = useState({});
+  const [threadOpen, setThreadOpen] = useState({});
+  const [comments, setComments] = useState({});
+  const [commentDraft, setCommentDraft] = useState({});
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
 
@@ -169,6 +218,31 @@ export default function ClientPage() {
       setIdeas(fresh || []);
       setDeclineOpen(s => ({ ...s, [idea.id]: false }));
       showToast("Idea declined");
+    } catch (e) { showToast("Error: " + e.message); }
+  };
+
+  const handleToggleThread = async (idea) => {
+    const nowOpen = !threadOpen[idea.id];
+    setThreadOpen(s => ({ ...s, [idea.id]: nowOpen }));
+    if (nowOpen && !comments[idea.id]) {
+      const data = await getComments(idea.id).catch(() => []);
+      setComments(s => ({ ...s, [idea.id]: data || [] }));
+    }
+  };
+
+  const handleSendComment = async (idea) => {
+    const content = (commentDraft[idea.id] || "").trim();
+    if (!content) return;
+    try {
+      await addComment(idea.id, "client", content);
+      const data = await getComments(idea.id);
+      setComments(s => ({ ...s, [idea.id]: data || [] }));
+      setCommentDraft(d => ({ ...d, [idea.id]: "" }));
+      fetch("/api/notify-andrew", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-webhook-secret": import.meta.env.VITE_WEBHOOK_SECRET || "" },
+        body: JSON.stringify({ type: "UPDATE", record: { ...idea, client_note: content }, old_record: idea }),
+      }).catch(() => {});
     } catch (e) { showToast("Error: " + e.message); }
   };
 
@@ -345,20 +419,12 @@ export default function ClientPage() {
                       </div>
                       <Badge status={idea.status} proposedDate={idea.proposed_date} />
                     </div>
-                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #f0f0ee" }}>
-                      <label style={lbl}>Your Notes</label>
-                      <textarea rows={2} placeholder="Leave a note for Andrew…"
-                        value={ideaNote[idea.id] ?? (idea.client_note || "")}
-                        onChange={e => setIdeaNote(n => ({ ...n, [idea.id]: e.target.value }))}
-                        style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5, textAlign: "left" }} />
-                    </div>
                     {idea.status === "pending" ? (
                       <>
                         <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
                           <button onClick={() => handleIdeaAction(idea, "approved")} style={{ ...btn, background: "#2d7a4f", padding: "8px 18px", fontSize: 9 }}>✓ Approve</button>
                           <button onClick={() => setDeclineOpen(s => ({ ...s, [idea.id]: !s[idea.id] }))} style={{ ...btn, background: "#c0392b", padding: "8px 18px", fontSize: 9 }}>✕ Decline</button>
                           <button onClick={() => setScheduleOpen(o => ({ ...o, [idea.id]: !o[idea.id] }))} style={{ ...btn, background: "transparent", color: "#1a1a1a", border: "1px solid #1a1a1a", padding: "8px 18px", fontSize: 9 }}>Request to Schedule</button>
-                          <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Save Note</button>
                         </div>
                         {declineOpen[idea.id] && (
                           <div style={{ marginTop: 14, padding: "16px 18px", background: "#fdf2f2", border: "1px solid #f0b8b8", borderRadius: 3 }}>
@@ -377,11 +443,8 @@ export default function ClientPage() {
                     ) : idea.status === "approved" ? (
                       <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
                         <button onClick={() => setScheduleOpen(o => ({ ...o, [idea.id]: !o[idea.id] }))} style={{ ...btn, background: "transparent", color: "#1a1a1a", border: "1px solid #1a1a1a", padding: "8px 18px", fontSize: 9 }}>Request to Schedule</button>
-                        <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9 }}>Save Note</button>
                       </div>
-                    ) : (
-                      <button onClick={() => handleIdeaAction(idea, "note")} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "8px 18px", fontSize: 9, marginTop: 12 }}>Save Note</button>
-                    )}
+                    ) : null}
                     {scheduleOpen[idea.id] && (
                       <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #f0f0ee" }}>
                         <label style={lbl}>Proposed shoot date</label>
@@ -398,6 +461,22 @@ export default function ClientPage() {
                         </div>
                       </div>
                     )}
+                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #f0f0ee" }}>
+                      <button onClick={() => handleToggleThread(idea)}
+                        style={{ background: "none", border: "none", fontSize: 10, fontWeight: 500, letterSpacing: 1.5, textTransform: "uppercase", color: "#888", cursor: "pointer", fontFamily: "'Jost', sans-serif", padding: 0 }}>
+                        {threadOpen[idea.id] ? "Hide conversation" : (comments[idea.id]?.length ? `View conversation (${comments[idea.id].length})` : "Start a conversation")}
+                      </button>
+                      {threadOpen[idea.id] && (
+                        <div style={{ marginTop: 12 }}>
+                          <CommentThread
+                            comments={comments[idea.id] || []}
+                            draft={commentDraft[idea.id] || ""}
+                            onDraftChange={v => setCommentDraft(d => ({ ...d, [idea.id]: v }))}
+                            onSend={() => handleSendComment(idea)}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
