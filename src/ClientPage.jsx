@@ -324,7 +324,7 @@ export default function ClientPage() {
                   <div style={{ fontSize: 14, color: "#888", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>No content ideas posted yet.</div>
                 )}
                 {ideas.map(idea => (
-                  <div key={idea.id} style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "24px 28px", marginBottom: 16 }}>
+                  <div key={idea.id} style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "24px 28px", marginBottom: 16, textAlign: "left" }}>
                     <div className="portal-idea-card-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 10 }}>
                       <div>
                         <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "#1a1a1a", marginBottom: 6, textAlign: "left" }}>{idea.title}</div>
