@@ -327,8 +327,8 @@ export default function ClientPage() {
                   <div key={idea.id} style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "24px 28px", marginBottom: 16 }}>
                     <div className="portal-idea-card-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 10 }}>
                       <div>
-                        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "#1a1a1a", marginBottom: 6 }}>{idea.title}</div>
-                        {idea.body && <div style={{ fontSize: 13, color: "#666", lineHeight: 1.6, fontWeight: 300 }}>{idea.body}</div>}
+                        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "#1a1a1a", marginBottom: 6, textAlign: "left" }}>{idea.title}</div>
+                        {idea.body && <div style={{ fontSize: 13, color: "#666", lineHeight: 1.6, fontWeight: 300, textAlign: "left" }}>{idea.body}</div>}
                       </div>
                       <Badge status={idea.status} proposedDate={idea.proposed_date} />
                     </div>
@@ -337,7 +337,7 @@ export default function ClientPage() {
                       <textarea rows={2} placeholder="Leave a note for Andrew…"
                         value={ideaNote[idea.id] ?? (idea.client_note || "")}
                         onChange={e => setIdeaNote(n => ({ ...n, [idea.id]: e.target.value }))}
-                        style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
+                        style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5, textAlign: "left" }} />
                     </div>
                     {idea.status === "pending" ? (
                       <div className="portal-idea-actions" style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
