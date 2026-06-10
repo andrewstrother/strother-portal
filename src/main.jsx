@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import ClientPage from './ClientPage.jsx'
+import Landing from './Landing.jsx'
 
 function UnsubscribeRedirect() {
   const { search } = useLocation();
@@ -17,9 +18,12 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/admin" element={<App />} />
         <Route path="/client/:slug" element={<ClientPage />} />
         <Route path="/unsubscribe" element={<UnsubscribeRedirect />} />
-        <Route path="*" element={<App />} />
+        <Route path="/:slug" element={<ClientPage />} />
+        <Route path="*" element={<Landing />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

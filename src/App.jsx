@@ -266,7 +266,7 @@ export default function App() {
   const [loading, setLoading]   = useState(true);
   const [dbError, setDbError]   = useState(null);
 
-  const [mode, setMode]                   = useState("client");
+  const [mode, setMode]                   = useState("admin");
   const [adminUnlocked, setAdminUnlocked] = useState(false);
   const [showPin, setShowPin]             = useState(false);
 
@@ -490,6 +490,16 @@ export default function App() {
 
   const switchToAdmin = () => { if (adminUnlocked) { setMode("admin"); } else { setShowPin(true); } };
   const handleUnlock = () => { setAdminUnlocked(true); setShowPin(false); setMode("admin"); };
+
+  // The /admin route is PIN-locked — nothing renders until unlocked
+  if (!adminUnlocked) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#f5f5f3", fontFamily: "'Jost', sans-serif" }}>
+        <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet" />
+        <PinGate onUnlock={handleUnlock} onCancel={() => window.location.assign("/")} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f5f3", fontFamily: "'Jost', sans-serif", color: "#1a1a1a" }}>
@@ -991,7 +1001,7 @@ export default function App() {
                         <input style={inputStyle} value={editForm.slug} onChange={e => setEditForm({ ...editForm, slug: e.target.value })} />
                         {editForm.slug && (
                           <div style={{ marginTop: 6, fontSize: 11, color: "#888", fontWeight: 300 }}>
-                            {window.location.origin}/client/<strong style={{ color: "#1a1a1a" }}>{editForm.slug}</strong>
+                            {window.location.origin}/<strong style={{ color: "#1a1a1a" }}>{editForm.slug}</strong>
                           </div>
                         )}
                       </div>

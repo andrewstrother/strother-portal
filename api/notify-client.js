@@ -104,7 +104,7 @@ export default async function handler(req, res) {
       if (!client?.notifications_enabled || !client?.email) return res.status(200).json({ skipped: true });
 
       const unsubscribeUrl = `${PORTAL_URL}/unsubscribe?token=${client.unsubscribe_token}`;
-      const portalUrl = client.slug ? `${PORTAL_URL}/client/${client.slug}` : PORTAL_URL;
+      const portalUrl = client.slug ? `${PORTAL_URL}/${client.slug}` : PORTAL_URL;
 
       const html = buildEmail({
         heading: "Andrew shared a new content idea with you",
@@ -129,7 +129,7 @@ export default async function handler(req, res) {
       if (!client.notifications_enabled || !client.email) return res.status(200).json({ skipped: true });
 
       const unsubscribeUrl = `${PORTAL_URL}/unsubscribe?token=${client.unsubscribe_token}`;
-      const portalUrl = client.slug ? `${PORTAL_URL}/client/${client.slug}` : PORTAL_URL;
+      const portalUrl = client.slug ? `${PORTAL_URL}/${client.slug}` : PORTAL_URL;
       const added = record.credits - (old.credits ?? 0);
 
       const html = buildEmail({
@@ -155,7 +155,7 @@ export default async function handler(req, res) {
       if (!client?.notifications_enabled || !client?.email) return res.status(200).json({ skipped: true });
 
       const unsubscribeUrl = `${PORTAL_URL}/unsubscribe?token=${client.unsubscribe_token}`;
-      const portalUrl = client.slug ? `${PORTAL_URL}/client/${client.slug}` : PORTAL_URL;
+      const portalUrl = client.slug ? `${PORTAL_URL}/${client.slug}` : PORTAL_URL;
       const dateStr = formatDate(record.proposed_date);
 
       const html = buildEmail({

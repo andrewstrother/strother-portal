@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
+import { supabase } from "./supabaseClient";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -25,6 +26,11 @@ async function sb(path, options = {}) {
 async function getClientBySlug(slug) {
   const data = await sb(`clients?slug=eq.${encodeURIComponent(slug)}&select=*`);
   return data && data.length > 0 ? data[0] : null;
+}
+async function clientEmailExists(email) {
+  // ilike with no wildcards = case-insensitive equality
+  const data = await sb(`clients?email=ilike.${encodeURIComponent(email)}&select=id`);
+  return data && data.length > 0;
 }
 async function getShoots(clientId) { return sb(`shoots?client_id=eq.${clientId}&order=date.desc`); }
 async function getIdeas(clientId) { return sb(`content_ideas?client_id=eq.${clientId}&order=created_at.desc`); }
@@ -161,6 +167,70 @@ function DatePickerInput({ value, onChange, placeholder = "Select a date" }) {
   );
 }
 
+// ── Magic link login card — shown at /[slug] when unauthenticated ──
+function MagicLinkLogin() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | sending | sent | nomatch | error
+  const [sentTo, setSentTo] = useState("");
+
+  const handleSend = async () => {
+    const trimmed = email.trim();
+    if (!trimmed || status === "sending") return;
+    setStatus("sending");
+    try {
+      // Only send the magic link if this email belongs to a client
+      if (!(await clientEmailExists(trimmed))) { setStatus("nomatch"); return; }
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmed,
+        options: { emailRedirectTo: window.location.href },
+      });
+      if (error) throw error;
+      setSentTo(trimmed);
+      setStatus("sent");
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", justifyContent: "center", paddingTop: 48 }}>
+      <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 4, padding: "48px 52px", width: 420, maxWidth: "100%", textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.06)" }}>
+        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 38, margin: "0 0 12px", lineHeight: 1.1 }}>Welcome Back</h1>
+        {status === "sent" ? (
+          <p style={{ fontSize: 13, color: "#1a1a1a", fontWeight: 300, lineHeight: 1.7, margin: 0 }}>
+            Check your email — we sent a link to <strong style={{ fontWeight: 500 }}>{sentTo}</strong>
+          </p>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, color: "#888", fontWeight: 300, lineHeight: 1.7, margin: "0 0 28px" }}>
+              Enter your email address to access your portal
+            </p>
+            <input
+              type="email" placeholder="you@company.com" value={email} autoFocus
+              onChange={e => { setEmail(e.target.value); if (status === "nomatch" || status === "error") setStatus("idle"); }}
+              onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
+              style={{ ...inputStyle, textAlign: "center", marginBottom: 12 }}
+            />
+            {status === "nomatch" && (
+              <div style={{ fontSize: 12, color: "#c0392b", lineHeight: 1.6, marginBottom: 12 }}>
+                No portal found for that email address. Please contact Andrew directly.
+              </div>
+            )}
+            {status === "error" && (
+              <div style={{ fontSize: 12, color: "#c0392b", lineHeight: 1.6, marginBottom: 12 }}>
+                Something went wrong sending your link. Please try again.
+              </div>
+            )}
+            <button onClick={handleSend} disabled={status === "sending"} style={{ ...btn, width: "100%", padding: "12px 0", opacity: status === "sending" ? 0.6 : 1 }}>
+              {status === "sending" ? "Sending…" : "Send Access Link"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ClientPage() {
   const { slug } = useParams();
   const [client, setClient] = useState(null);
@@ -168,6 +238,7 @@ export default function ClientPage() {
   const [ideas, setIdeas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [session, setSession] = useState(undefined); // undefined = still checking
   const [clientTab, setClientTab] = useState("overview");
   const [toast, setToast] = useState(null);
   const [ideaNote, setIdeaNote] = useState({});
@@ -181,15 +252,19 @@ export default function ClientPage() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
 
+  // Supabase session — picked up automatically from the URL hash after a magic link redirect
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => subscription.unsubscribe();
+  }, []);
+
   useEffect(() => {
     async function load() {
       try {
         const c = await getClientBySlug(slug);
         if (!c) { setNotFound(true); setLoading(false); return; }
         setClient(c);
-        const [s, i] = await Promise.all([getShoots(c.id), getIdeas(c.id)]);
-        setShoots(s || []);
-        setIdeas(i || []);
       } catch {
         setNotFound(true);
       } finally {
@@ -198,6 +273,22 @@ export default function ClientPage() {
     }
     load();
   }, [slug]);
+
+  // Authenticated session email must match this client's email
+  const authorized = !!(
+    client?.email &&
+    session?.user?.email &&
+    session.user.email.toLowerCase() === client.email.toLowerCase()
+  );
+
+  // Only fetch portal data once authorized
+  useEffect(() => {
+    if (!authorized || !client) return;
+    Promise.all([getShoots(client.id), getIdeas(client.id)]).then(([s, i]) => {
+      setShoots(s || []);
+      setIdeas(i || []);
+    }).catch(() => {});
+  }, [authorized, client]);
 
   const handleIdeaAction = async (idea, action) => {
     const note = ideaNote[idea.id] ?? idea.client_note ?? "";
@@ -302,8 +393,8 @@ export default function ClientPage() {
 
       <main className="portal-main" style={{ maxWidth: 900, margin: "0 auto", padding: "52px 64px" }}>
 
-        {/* Loading */}
-        {loading && (
+        {/* Loading — waiting on client lookup or session check */}
+        {(loading || (!notFound && session === undefined)) && (
           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: "#888", fontStyle: "italic" }}>
             Loading…
           </div>
@@ -321,8 +412,11 @@ export default function ClientPage() {
           </div>
         )}
 
+        {/* Login — no session, or session email doesn't match this client */}
+        {!loading && client && session !== undefined && !authorized && <MagicLinkLogin />}
+
         {/* Client view */}
-        {!loading && client && (
+        {!loading && client && authorized && (
           <>
             <div className="portal-since" style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 10 }}>
               Client since {client.since ? new Date(client.since + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}
