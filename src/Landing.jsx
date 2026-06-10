@@ -14,10 +14,10 @@ export default function Landing() {
 
       <main style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "calc(100vh - 60px)", padding: "48px 24px" }}>
         <div style={{ textAlign: "center", maxWidth: 520 }}>
-          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 48, margin: "0 0 20px", lineHeight: 1.1 }}>
+          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 48, margin: "0 0 20px", lineHeight: 1.1, color: "#1a1a1a" }}>
             This is a private client portal
           </h1>
-          <p style={{ fontSize: 14, color: "#888", fontWeight: 300, lineHeight: 1.7, margin: 0 }}>
+          <p style={{ fontSize: 14, color: "#555", fontWeight: 300, lineHeight: 1.7, margin: 0 }}>
             If you're a client, please use the link provided to you. If you need help accessing your portal, contact us at{" "}
             <a href="mailto:howdy@andrewstrother.com" style={{ color: "#1a1a1a", textDecoration: "none", borderBottom: "1px solid #1a1a1a", paddingBottom: 1 }}>howdy@andrewstrother.com</a>
           </p>

@@ -195,14 +195,14 @@ function MagicLinkLogin() {
   return (
     <div style={{ display: "flex", justifyContent: "center", paddingTop: 48 }}>
       <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 4, padding: "48px 52px", width: 420, maxWidth: "100%", textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.06)" }}>
-        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 38, margin: "0 0 12px", lineHeight: 1.1 }}>Welcome Back</h1>
+        <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 38, margin: "0 0 12px", lineHeight: 1.1, color: "#1a1a1a" }}>Welcome Back</h1>
         {status === "sent" ? (
           <p style={{ fontSize: 13, color: "#1a1a1a", fontWeight: 300, lineHeight: 1.7, margin: 0 }}>
             Check your email — we sent a link to <strong style={{ fontWeight: 500 }}>{sentTo}</strong>
           </p>
         ) : (
           <>
-            <p style={{ fontSize: 13, color: "#888", fontWeight: 300, lineHeight: 1.7, margin: "0 0 28px" }}>
+            <p style={{ fontSize: 13, color: "#666", fontWeight: 300, lineHeight: 1.7, margin: "0 0 28px" }}>
               Enter your email address to access your portal
             </p>
             <input
