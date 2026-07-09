@@ -351,12 +351,26 @@ export default function App() {
 
   const handleAddClient = async () => {
     if (!newClientForm.name || !newClientForm.since) return;
+    if (!newClientForm.slug) { showToast("Portal URL slug is required"); return; }
     try {
       await addClient(newClientForm.name, newClientForm.since, newClientForm.email, newClientForm.phone, newClientForm.slug);
       await loadClients();
       setNewClientForm({ name: "", since: "", email: "", phone: "", slug: "" });
       setAddClientOpen(false);
       showToast("Client added");
+    } catch (e) { showToast("Error: " + e.message); }
+  };
+
+  const handleResendWelcome = async (client) => {
+    try {
+      const res = await fetch("/api/welcome-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-webhook-secret": import.meta.env.VITE_WEBHOOK_SECRET || "" },
+        body: JSON.stringify({ client_id: client.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to send");
+      showToast(data.sent ? "Welcome email sent" : "Skipped — already sent, or missing email/slug");
     } catch (e) { showToast("Error: " + e.message); }
   };
 
@@ -631,6 +645,15 @@ export default function App() {
                     <input style={inputStyle} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value, slug: generateSlug(e.target.value) })} />
                   </div>
                   <div style={{ marginBottom: 18 }}>
+                    <label style={lbl}>Portal URL Slug</label>
+                    <input style={inputStyle} placeholder="acme-corp" value={newClientForm.slug} onChange={e => setNewClientForm({ ...newClientForm, slug: generateSlug(e.target.value) })} />
+                    {newClientForm.slug && (
+                      <div style={{ marginTop: 6, fontSize: 11, color: "#888", fontWeight: 300 }}>
+                        {window.location.origin}/<strong style={{ color: "#1a1a1a" }}>{newClientForm.slug}</strong>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ marginBottom: 18 }}>
                     <label style={lbl}>Retainer Since</label>
                     <DatePickerInput value={newClientForm.since} onChange={val => setNewClientForm({ ...newClientForm, since: val })} placeholder="Select start date" />
                   </div>
@@ -724,7 +747,10 @@ export default function App() {
                             </span>
                           </div>
                         </div>
-                        <button onClick={() => handleEditClient(client)} style={{ ...btn, marginBottom: 32 }}>Save Changes</button>
+                        <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
+                          <button onClick={() => handleEditClient(client)} style={btn}>Save Changes</button>
+                          <button onClick={() => handleResendWelcome(client)} style={{ ...btn, background: "transparent", color: "#1a1a1a", border: "1px solid #1a1a1a" }}>Resend Welcome Email</button>
+                        </div>
 
                         <div style={{ borderTop: "1px solid #e2e2e0", paddingTop: 28 }}>
                           <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 12 }}>Danger Zone</div>
@@ -764,7 +790,12 @@ export default function App() {
               </div>
               <div style={{ marginBottom: 18 }}>
                 <label style={lbl}>Portal URL Slug</label>
-                <input style={inputStyle} placeholder="acme-corp" value={newClientForm.slug} onChange={e => setNewClientForm({ ...newClientForm, slug: e.target.value })} />
+                <input style={inputStyle} placeholder="acme-corp" value={newClientForm.slug} onChange={e => setNewClientForm({ ...newClientForm, slug: generateSlug(e.target.value) })} />
+                {newClientForm.slug && (
+                  <div style={{ marginTop: 6, fontSize: 11, color: "#888", fontWeight: 300 }}>
+                    {window.location.origin}/<strong style={{ color: "#1a1a1a" }}>{newClientForm.slug}</strong>
+                  </div>
+                )}
               </div>
               <div style={{ marginBottom: 24 }}>
                 <label style={lbl}>Retainer Since</label>
