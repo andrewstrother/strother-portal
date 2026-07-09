@@ -172,6 +172,9 @@ function MagicLinkLogin() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("idle"); // idle | sending | sent | nomatch | error
   const [sentTo, setSentTo] = useState("");
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [codeError, setCodeError] = useState(false);
 
   const handleSend = async () => {
     const trimmed = email.trim();
@@ -192,14 +195,55 @@ function MagicLinkLogin() {
     }
   };
 
+  const handleVerifyCode = async () => {
+    const entered = code.trim();
+    if (!entered || verifying) return;
+    setVerifying(true);
+    setCodeError(false);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: sentTo,
+        token: entered,
+        type: "email",
+      });
+      if (error) throw error;
+      // Success — the auth state change listener will pick up the session
+      // and advance the portal automatically.
+    } catch {
+      setCodeError(true);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   return (
     <div style={{ display: "flex", justifyContent: "center", paddingTop: 48 }}>
       <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 4, padding: "48px 52px", width: 420, maxWidth: "100%", textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.06)" }}>
         <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 38, margin: "0 0 12px", lineHeight: 1.1, color: "#1a1a1a" }}>Welcome Back</h1>
         {status === "sent" ? (
-          <p style={{ fontSize: 13, color: "#1a1a1a", fontWeight: 300, lineHeight: 1.7, margin: 0 }}>
-            Check your email — we sent a link to <strong style={{ fontWeight: 500 }}>{sentTo}</strong>
-          </p>
+          <>
+            <p style={{ fontSize: 13, color: "#1a1a1a", fontWeight: 300, lineHeight: 1.7, margin: "0 0 28px" }}>
+              Check your email — we sent a link to <strong style={{ fontWeight: 500 }}>{sentTo}</strong>
+            </p>
+            <div style={{ paddingTop: 24, borderTop: "1px solid #e2e2e0" }}>
+              <label style={{ ...lbl, textAlign: "center" }}>Or enter the 6-digit code from your email</label>
+              <input
+                type="text" inputMode="numeric" placeholder="000000" value={code} autoFocus
+                maxLength={6}
+                onChange={e => { setCode(e.target.value.replace(/\D/g, "")); if (codeError) setCodeError(false); }}
+                onKeyDown={e => { if (e.key === "Enter") handleVerifyCode(); }}
+                style={{ ...inputStyle, textAlign: "center", letterSpacing: 6, fontSize: 18, marginBottom: 12 }}
+              />
+              {codeError && (
+                <div style={{ fontSize: 12, color: "#c0392b", lineHeight: 1.6, marginBottom: 12 }}>
+                  That code didn't work. Please try again or request a new link.
+                </div>
+              )}
+              <button onClick={handleVerifyCode} disabled={verifying} style={{ ...btn, width: "100%", padding: "12px 0", opacity: verifying ? 0.6 : 1 }}>
+                {verifying ? "Verifying…" : "Verify Code"}
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <p style={{ fontSize: 13, color: "#666", fontWeight: 300, lineHeight: 1.7, margin: "0 0 28px" }}>
