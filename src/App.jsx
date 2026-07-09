@@ -279,6 +279,7 @@ export default function App() {
   const [newClientForm, setNewClientForm] = useState({ name: "", since: "", email: "", phone: "", slug: "" });
   const [addClientOpen, setAddClientOpen]   = useState(false);
   const [expandedClientId, setExpandedClientId] = useState(null);
+  const [manageClientsActive, setManageClientsActive] = useState(false);
   const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "", slug: "", notifications_enabled: true });
   const [deleteConfirm, setDeleteConfirm]   = useState(false);
   const [ideaForm, setIdeaForm]           = useState({ title: "", body: "" });
@@ -300,6 +301,7 @@ export default function App() {
       const data = await getClients();
       setClients(data || []);
       setSelected(prev => {
+        if (manageClientsActive) return null;
         if (!prev && data && data.length > 0) return data[0];
         if (prev && data) return data.find(c => c.id === prev.id) || prev;
         return prev;
@@ -310,7 +312,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [manageClientsActive]);
 
   useEffect(() => { loadClients(); }, [loadClients]);
 
@@ -383,6 +385,7 @@ export default function App() {
       const data = (await getClients()) || [];
       setClients(data);
       setSelected(prev => {
+        if (manageClientsActive) return null;
         if (prev?.id === client.id) return data[0] || null;
         return prev ? data.find(c => c.id === prev.id) || prev : (data[0] || null);
       });
@@ -575,13 +578,21 @@ export default function App() {
 
         {/* Sidebar */}
         <aside className="portal-sidebar" style={{ width: 256, background: "#fff", borderRight: "1px solid #e2e2e0", paddingTop: 36, flexShrink: 0 }}>
+          {mode === "admin" && (
+            <div onClick={() => { setManageClientsActive(true); setSelected(null); }}
+              style={{ padding: "13px 28px", marginBottom: 14, cursor: "pointer", background: manageClientsActive ? "#f5f5f3" : "transparent", borderLeft: `2px solid ${manageClientsActive ? "#1a1a1a" : "transparent"}`, transition: "all 0.15s" }}
+              onMouseEnter={e => { if (!manageClientsActive) e.currentTarget.style.background = "#fafaf8"; }}
+              onMouseLeave={e => { if (!manageClientsActive) e.currentTarget.style.background = "transparent"; }}>
+              <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: manageClientsActive ? "#1a1a1a" : "#888" }}>Manage Clients</span>
+            </div>
+          )}
           <div style={{ padding: "0 28px 14px", fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#c0c0bc" }}>Clients</div>
           {loading && <div style={{ padding: "0 28px", fontSize: 12, color: "#888" }}>Loading…</div>}
           {dbError && <div style={{ padding: "0 28px", fontSize: 11, color: "#c0392b", lineHeight: 1.5 }}>DB error — check Supabase credentials</div>}
           {clients.map(client => {
-            const isActive = selected?.id === client.id;
+            const isActive = !manageClientsActive && selected?.id === client.id;
             return (
-              <div key={client.id} onClick={() => setSelected(client)}
+              <div key={client.id} onClick={() => { setManageClientsActive(false); setSelected(client); }}
                 style={{ padding: "13px 28px", cursor: "pointer", background: isActive ? "#f5f5f3" : "transparent", borderLeft: `2px solid ${isActive ? "#1a1a1a" : "transparent"}`, transition: "all 0.15s" }}
                 onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#fafaf8"; }}
                 onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
@@ -603,7 +614,146 @@ export default function App() {
             </div>
           )}
 
-          {mode === "admin" && !selected && (
+          {mode === "admin" && manageClientsActive && (
+            <div className="portal-admin-form" style={{ maxWidth: 560 }}>
+              <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 10, textAlign: "left" }}>Admin Panel</div>
+              <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 48, margin: "0 0 32px", lineHeight: 1.05, textAlign: "left" }}>Manage Clients</h1>
+              <div style={{ height: 1, background: "#e2e2e0", marginBottom: 32 }} />
+
+              {/* Add Client — pinned at top */}
+              {!addClientOpen ? (
+                <button onClick={() => setAddClientOpen(true)} style={{ ...btn, marginBottom: 28 }}>+ Add Client</button>
+              ) : (
+                <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "24px 28px", marginBottom: 32 }}>
+                  <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 20 }}>Add New Client</div>
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={lbl}>Client Name</label>
+                    <input style={inputStyle} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value, slug: generateSlug(e.target.value) })} />
+                  </div>
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={lbl}>Retainer Since</label>
+                    <DatePickerInput value={newClientForm.since} onChange={val => setNewClientForm({ ...newClientForm, since: val })} placeholder="Select start date" />
+                  </div>
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={lbl}>Email</label>
+                    <input style={inputStyle} placeholder="client@example.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
+                  </div>
+                  <div style={{ marginBottom: 24 }}>
+                    <label style={lbl}>Phone</label>
+                    <input style={inputStyle} placeholder="(555) 000-0000" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
+                  </div>
+                  <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
+                    New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={handleAddClient} style={btn}>Add Client</button>
+                    <button onClick={() => { setAddClientOpen(false); setNewClientForm({ name: "", since: "", email: "", phone: "", slug: "" }); }} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0" }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Client list */}
+              <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 16 }}>All Clients</div>
+              {clients.length === 0 && <div style={{ fontSize: 14, color: "#888", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>No clients yet.</div>}
+              {clients.map(client => {
+                const expanded = expandedClientId === client.id;
+                return (
+                  <div key={client.id} style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 10, overflow: "hidden" }}>
+                    <div onClick={() => toggleClientRow(client)}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "16px 20px", cursor: "pointer" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 400, color: "#1a1a1a" }}>{client.name}</div>
+                        <div style={{ fontSize: 11, color: "#888", fontWeight: 300, marginTop: 2, display: "flex", alignItems: "center", gap: 10 }}>
+                          <span><span style={{ color: "#1a1a1a", fontWeight: 500 }}>{client.credits}</span> credits</span>
+                          <span style={{ color: "#c0c0bc" }}>/{client.slug}</span>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                        <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", color: "#aaa" }}>{expanded ? "Close" : "Edit"}</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.5" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </div>
+                    </div>
+                    {expanded && (
+                      <div style={{ padding: "20px 20px 24px", borderTop: "1px solid #f0f0ee" }}>
+                        <div style={{ marginBottom: 18 }}>
+                          <label style={lbl}>Client Name</label>
+                          <input style={inputStyle} value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
+                        </div>
+                        <div style={{ marginBottom: 18 }}>
+                          <label style={lbl}>Portal URL Slug</label>
+                          <input style={inputStyle} value={editForm.slug} onChange={e => setEditForm({ ...editForm, slug: generateSlug(e.target.value) })} />
+                          {editForm.slug && (
+                            <div style={{ marginTop: 6, fontSize: 11, color: "#888", fontWeight: 300 }}>
+                              {window.location.origin}/<strong style={{ color: "#1a1a1a" }}>{editForm.slug}</strong>
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ marginBottom: 18 }}>
+                          <label style={lbl}>Retainer Since</label>
+                          <DatePickerInput value={editForm.since} onChange={val => setEditForm({ ...editForm, since: val })} placeholder="Select start date" />
+                        </div>
+                        <div style={{ marginBottom: 18 }}>
+                          <label style={lbl}>Email</label>
+                          <input style={inputStyle} placeholder="client@example.com" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} />
+                        </div>
+                        <div style={{ marginBottom: 24 }}>
+                          <label style={lbl}>Phone</label>
+                          <input style={inputStyle} placeholder="(555) 000-0000" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
+                        </div>
+                        <div style={{ marginBottom: 28 }}>
+                          <label style={lbl}>Email Notifications</label>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <button
+                              onClick={() => setEditForm(f => ({ ...f, notifications_enabled: !f.notifications_enabled }))}
+                              style={{
+                                width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", position: "relative", flexShrink: 0,
+                                background: editForm.notifications_enabled ? "#1a1a1a" : "#d0d0cc",
+                                transition: "background 0.2s",
+                              }}
+                            >
+                              <span style={{
+                                position: "absolute", top: 3, left: editForm.notifications_enabled ? 23 : 3,
+                                width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                                transition: "left 0.2s",
+                              }} />
+                            </button>
+                            <span style={{ fontSize: 12, color: "#888" }}>
+                              {editForm.notifications_enabled ? "On — client receives email notifications" : "Off — no emails sent to client"}
+                            </span>
+                          </div>
+                        </div>
+                        <button onClick={() => handleEditClient(client)} style={{ ...btn, marginBottom: 32 }}>Save Changes</button>
+
+                        <div style={{ borderTop: "1px solid #e2e2e0", paddingTop: 28 }}>
+                          <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 12 }}>Danger Zone</div>
+                          {!deleteConfirm ? (
+                            <button onClick={() => setDeleteConfirm(true)}
+                              style={{ ...btn, background: "transparent", color: "#c0392b", border: "1px solid #c0392b", padding: "10px 22px" }}>
+                              Delete Client
+                            </button>
+                          ) : (
+                            <div style={{ background: "#fdf2f2", border: "1px solid #f0b8b8", borderRadius: 3, padding: "16px 20px" }}>
+                              <div style={{ fontSize: 13, color: "#c0392b", marginBottom: 14, lineHeight: 1.5 }}>
+                                Permanently delete <strong>{client.name}</strong> and all their shoots and content ideas? This cannot be undone.
+                              </div>
+                              <div style={{ display: "flex", gap: 10 }}>
+                                <button onClick={() => handleDeleteClient(client)} style={{ ...btn, background: "#c0392b", padding: "9px 20px", fontSize: 9 }}>Yes, Delete</button>
+                                <button onClick={() => setDeleteConfirm(false)} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "9px 20px", fontSize: 9 }}>Cancel</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {mode === "admin" && !manageClientsActive && !selected && (
             <div className="portal-admin-form" style={{ maxWidth: 400 }}>
               <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 10 }}>Admin Panel</div>
               <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 48, margin: "0 0 32px", lineHeight: 1.05 }}>Add Your First Client</h1>
@@ -776,7 +926,7 @@ export default function App() {
                   <div style={{ height: 1, background: "#e2e2e0", marginBottom: 32 }} />
 
                   <div className="portal-tabs" style={{ display: "flex", gap: 2, borderBottom: "1px solid #e2e2e0", marginBottom: 36 }}>
-                    {[["log","Log Shoot"],["credits","Adjust Credits"],["ideas","Content Ideas"],["shoots","Shoots"],["clients","Manage Clients"]].map(([tab, label]) => (
+                    {[["log","Log Shoot"],["credits","Adjust Credits"],["ideas","Content Ideas"],["shoots","Shoots"]].map(([tab, label]) => (
                       <button key={tab} onClick={() => setAdminTab(tab)} style={{ background: "none", border: "none", borderBottom: adminTab === tab ? "2px solid #1a1a1a" : "2px solid transparent", padding: "10px 18px", fontSize: 10, fontWeight: adminTab === tab ? 500 : 400, letterSpacing: 2, textTransform: "uppercase", color: adminTab === tab ? "#1a1a1a" : "#aaa", cursor: "pointer", fontFamily: "'Jost', sans-serif", marginBottom: -1 }}>
                         {label}
                       </button>
@@ -1006,141 +1156,6 @@ export default function App() {
                           </div>
                         </div>
                       ))}
-                    </div>
-                  )}
-
-                  {adminTab === "clients" && (
-                    <div className="portal-admin-form" style={{ maxWidth: 560 }}>
-                      {/* Add Client — pinned at top */}
-                      {!addClientOpen ? (
-                        <button onClick={() => setAddClientOpen(true)} style={{ ...btn, marginBottom: 28 }}>+ Add Client</button>
-                      ) : (
-                        <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "24px 28px", marginBottom: 32 }}>
-                          <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 20 }}>Add New Client</div>
-                          <div style={{ marginBottom: 18 }}>
-                            <label style={lbl}>Client Name</label>
-                            <input style={inputStyle} placeholder="e.g. Acme Corp" value={newClientForm.name} onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value, slug: generateSlug(e.target.value) })} />
-                          </div>
-                          <div style={{ marginBottom: 18 }}>
-                            <label style={lbl}>Retainer Since</label>
-                            <DatePickerInput value={newClientForm.since} onChange={val => setNewClientForm({ ...newClientForm, since: val })} placeholder="Select start date" />
-                          </div>
-                          <div style={{ marginBottom: 18 }}>
-                            <label style={lbl}>Email</label>
-                            <input style={inputStyle} placeholder="client@example.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
-                          </div>
-                          <div style={{ marginBottom: 24 }}>
-                            <label style={lbl}>Phone</label>
-                            <input style={inputStyle} placeholder="(555) 000-0000" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
-                          </div>
-                          <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
-                            New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
-                          </div>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <button onClick={handleAddClient} style={btn}>Add Client</button>
-                            <button onClick={() => { setAddClientOpen(false); setNewClientForm({ name: "", since: "", email: "", phone: "", slug: "" }); }} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0" }}>Cancel</button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Client list */}
-                      <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 16 }}>All Clients</div>
-                      {clients.length === 0 && <div style={{ fontSize: 14, color: "#888", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>No clients yet.</div>}
-                      {clients.map(client => {
-                        const expanded = expandedClientId === client.id;
-                        return (
-                          <div key={client.id} style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 10, overflow: "hidden" }}>
-                            <div onClick={() => toggleClientRow(client)}
-                              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "16px 20px", cursor: "pointer" }}>
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 400, color: "#1a1a1a" }}>{client.name}</div>
-                                <div style={{ fontSize: 11, color: "#888", fontWeight: 300, marginTop: 2, display: "flex", alignItems: "center", gap: 10 }}>
-                                  <span><span style={{ color: "#1a1a1a", fontWeight: 500 }}>{client.credits}</span> credits</span>
-                                  <span style={{ color: "#c0c0bc" }}>/{client.slug}</span>
-                                </div>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                                <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2, textTransform: "uppercase", color: "#aaa" }}>{expanded ? "Close" : "Edit"}</span>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.5" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-                                  <polyline points="6 9 12 15 18 9" />
-                                </svg>
-                              </div>
-                            </div>
-                            {expanded && (
-                              <div style={{ padding: "20px 20px 24px", borderTop: "1px solid #f0f0ee" }}>
-                                <div style={{ marginBottom: 18 }}>
-                                  <label style={lbl}>Client Name</label>
-                                  <input style={inputStyle} value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
-                                </div>
-                                <div style={{ marginBottom: 18 }}>
-                                  <label style={lbl}>Portal URL Slug</label>
-                                  <input style={inputStyle} value={editForm.slug} onChange={e => setEditForm({ ...editForm, slug: generateSlug(e.target.value) })} />
-                                  {editForm.slug && (
-                                    <div style={{ marginTop: 6, fontSize: 11, color: "#888", fontWeight: 300 }}>
-                                      {window.location.origin}/<strong style={{ color: "#1a1a1a" }}>{editForm.slug}</strong>
-                                    </div>
-                                  )}
-                                </div>
-                                <div style={{ marginBottom: 18 }}>
-                                  <label style={lbl}>Retainer Since</label>
-                                  <DatePickerInput value={editForm.since} onChange={val => setEditForm({ ...editForm, since: val })} placeholder="Select start date" />
-                                </div>
-                                <div style={{ marginBottom: 18 }}>
-                                  <label style={lbl}>Email</label>
-                                  <input style={inputStyle} placeholder="client@example.com" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} />
-                                </div>
-                                <div style={{ marginBottom: 24 }}>
-                                  <label style={lbl}>Phone</label>
-                                  <input style={inputStyle} placeholder="(555) 000-0000" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
-                                </div>
-                                <div style={{ marginBottom: 28 }}>
-                                  <label style={lbl}>Email Notifications</label>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                    <button
-                                      onClick={() => setEditForm(f => ({ ...f, notifications_enabled: !f.notifications_enabled }))}
-                                      style={{
-                                        width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", position: "relative", flexShrink: 0,
-                                        background: editForm.notifications_enabled ? "#1a1a1a" : "#d0d0cc",
-                                        transition: "background 0.2s",
-                                      }}
-                                    >
-                                      <span style={{
-                                        position: "absolute", top: 3, left: editForm.notifications_enabled ? 23 : 3,
-                                        width: 18, height: 18, borderRadius: "50%", background: "#fff",
-                                        transition: "left 0.2s",
-                                      }} />
-                                    </button>
-                                    <span style={{ fontSize: 12, color: "#888" }}>
-                                      {editForm.notifications_enabled ? "On — client receives email notifications" : "Off — no emails sent to client"}
-                                    </span>
-                                  </div>
-                                </div>
-                                <button onClick={() => handleEditClient(client)} style={{ ...btn, marginBottom: 32 }}>Save Changes</button>
-
-                                <div style={{ borderTop: "1px solid #e2e2e0", paddingTop: 28 }}>
-                                  <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 12 }}>Danger Zone</div>
-                                  {!deleteConfirm ? (
-                                    <button onClick={() => setDeleteConfirm(true)}
-                                      style={{ ...btn, background: "transparent", color: "#c0392b", border: "1px solid #c0392b", padding: "10px 22px" }}>
-                                      Delete Client
-                                    </button>
-                                  ) : (
-                                    <div style={{ background: "#fdf2f2", border: "1px solid #f0b8b8", borderRadius: 3, padding: "16px 20px" }}>
-                                      <div style={{ fontSize: 13, color: "#c0392b", marginBottom: 14, lineHeight: 1.5 }}>
-                                        Permanently delete <strong>{client.name}</strong> and all their shoots and content ideas? This cannot be undone.
-                                      </div>
-                                      <div style={{ display: "flex", gap: 10 }}>
-                                        <button onClick={() => handleDeleteClient(client)} style={{ ...btn, background: "#c0392b", padding: "9px 20px", fontSize: 9 }}>Yes, Delete</button>
-                                        <button onClick={() => setDeleteConfirm(false)} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0", padding: "9px 20px", fontSize: 9 }}>Cancel</button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
                     </div>
                   )}
                 </>
