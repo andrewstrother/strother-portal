@@ -20,7 +20,7 @@ function formatDate(iso) {
   });
 }
 
-function buildEmail({ subject, heading, rows, cta }) {
+function buildEmail({ heading, rows, cta }) {
   const rowsHtml = rows
     .map(([label, value]) => `
       <tr>

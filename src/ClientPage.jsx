@@ -285,7 +285,7 @@ export default function ClientPage() {
   const [session, setSession] = useState(undefined); // undefined = still checking
   const [clientTab, setClientTab] = useState("overview");
   const [toast, setToast] = useState(null);
-  const [ideaNote, setIdeaNote] = useState({});
+  const [ideaNote] = useState({});
   const [scheduleOpen, setScheduleOpen] = useState({});
   const [scheduleDate, setScheduleDate] = useState({});
   const [declineOpen, setDeclineOpen] = useState({});

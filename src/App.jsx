@@ -99,7 +99,7 @@ function formatCommentTime(ts) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " at " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
-function CommentThread({ comments, draft, onDraftChange, onSend, viewerAuthor }) {
+function CommentThread({ comments, draft, onDraftChange, onSend }) {
   return (
     <div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: comments.length ? 14 : 0 }}>
@@ -280,7 +280,7 @@ export default function App() {
   const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "", slug: "", notifications_enabled: true });
   const [deleteConfirm, setDeleteConfirm]   = useState(false);
   const [ideaForm, setIdeaForm]           = useState({ title: "", body: "" });
-  const [ideaNote, setIdeaNote]           = useState({});
+  const [ideaNote]           = useState({});
   const [ideaDeleteConfirm, setIdeaDeleteConfirm] = useState({});
   const [declineOpen, setDeclineOpen] = useState({});
   const [declineReason, setDeclineReason] = useState({});
