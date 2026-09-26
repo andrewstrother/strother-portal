@@ -4,9 +4,6 @@ const CRON_SECRET = process.env.CRON_SECRET;
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 const PORTAL_URL = process.env.PORTAL_URL || "https://clients.andrewstrother.com";
 
-const MONTHLY_CREDITS = 4;
-const MAX_CREDITS = 16;
-
 const sbHeaders = {
   apikey: SERVICE_KEY,
   Authorization: `Bearer ${SERVICE_KEY}`,
@@ -23,19 +20,30 @@ export default async function handler(req, res) {
     if (!clientsRes.ok) throw new Error(await clientsRes.text());
     const clients = await clientsRes.json();
 
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
+    const todayDay = today.getUTCDate();
+
     let updated = 0;
     let skipped = 0;
     let notified = 0;
     const errors = [];
 
     for (const client of clients) {
-      const newCredits = Math.min((client.credits ?? 0) + MONTHLY_CREDITS, MAX_CREDITS);
-      if (newCredits === client.credits) { skipped++; continue; }
+      const rolloverDay = client.rollover_day ?? 1;
+      const monthlyCredits = client.monthly_credits ?? 4;
+      const maxCredits = client.max_credits ?? 16;
+
+      // Only roll over on the configured day, and only once per day
+      if (todayDay !== rolloverDay) { skipped++; continue; }
+      if (client.last_rollover_date === todayStr) { skipped++; continue; }
+
+      const newCredits = Math.min((client.credits ?? 0) + monthlyCredits, maxCredits);
 
       const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/clients?id=eq.${client.id}`, {
         method: "PATCH",
         headers: { ...sbHeaders, Prefer: "return=minimal" },
-        body: JSON.stringify({ credits: newCredits }),
+        body: JSON.stringify({ credits: newCredits, last_rollover_date: todayStr }),
       });
       if (!patchRes.ok) {
         errors.push({ client: client.name, error: await patchRes.text() });
@@ -43,8 +51,7 @@ export default async function handler(req, res) {
       }
       updated++;
 
-      // Reuse the existing "new credits" email via /api/notify-client —
-      // it checks notifications_enabled and skips clients without an email
+      // Reuse the existing "new credits" email via /api/notify-client
       try {
         const notifyRes = await fetch(`${PORTAL_URL}/api/notify-client`, {
           method: "POST",

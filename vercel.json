@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron-credits",
-      "schedule": "0 9 1 * *"
+      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/keep-alive",
