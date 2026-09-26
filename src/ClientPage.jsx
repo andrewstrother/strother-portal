@@ -491,12 +491,12 @@ export default function ClientPage() {
                         <div key={i} style={{ width: 9, height: 9, borderRadius: 1, background: "rgba(255,255,255,0.5)" }} />
                       ))}
                     </div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 14, fontWeight: 300 }}>4 credits / month · unused roll over</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 14, fontWeight: 300 }}>{client.monthly_credits ?? 4} credits / month · unused roll over</div>
                   </div>
                   <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "28px 30px" }}>
                     <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 16 }}>Used This Month</div>
                     <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 72, fontWeight: 300, lineHeight: 1, color: "#1a1a1a" }}>{thisMonth}</div>
-                    <div style={{ fontSize: 11, color: "#888", marginTop: 16, fontWeight: 300 }}>of 4 monthly credits</div>
+                    <div style={{ fontSize: 11, color: "#888", marginTop: 16, fontWeight: 300 }}>of {client.monthly_credits ?? 4} monthly credits</div>
                   </div>
                   <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "28px 30px" }}>
                     <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 16 }}>Total Sessions</div>

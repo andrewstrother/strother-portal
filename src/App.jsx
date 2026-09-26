@@ -38,8 +38,8 @@ function generateSlug(name) {
 }
 
 async function getClients() { return sb("clients?select=*&order=name.asc"); }
-async function addClient(name, since, email, phone, slug) {
-  return sb("clients", { method: "POST", prefer: "return=representation", body: JSON.stringify({ name, since, email, phone, credits: 4, slug }) });
+async function addClient(name, since, email, phone, slug, monthlyCredits, rolloverDay, maxCredits) {
+  return sb("clients", { method: "POST", prefer: "return=representation", body: JSON.stringify({ name, since, email, phone, credits: monthlyCredits ?? 4, slug, monthly_credits: monthlyCredits ?? 4, rollover_day: rolloverDay ?? 1, max_credits: maxCredits ?? 16 }) });
 }
 async function updateClient(clientId, patch) {
   return sb(`clients?id=eq.${clientId}`, { method: "PATCH", body: JSON.stringify(patch) });
@@ -276,11 +276,11 @@ export default function App() {
 
   const [logForm, setLogForm]             = useState({ description: "", credits: 1, date: "", galleryUrl: "", notes: "" });
   const [creditAdjust, setCreditAdjust]   = useState(0);
-  const [newClientForm, setNewClientForm] = useState({ name: "", since: "", email: "", phone: "", slug: "" });
+  const [newClientForm, setNewClientForm] = useState({ name: "", since: "", email: "", phone: "", slug: "", monthly_credits: 4, rollover_day: 1, max_credits: 16 });
   const [addClientOpen, setAddClientOpen]   = useState(false);
   const [expandedClientId, setExpandedClientId] = useState(null);
   const [manageClientsActive, setManageClientsActive] = useState(false);
-  const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "", slug: "", notifications_enabled: true });
+  const [editForm, setEditForm]             = useState({ name: "", since: "", email: "", phone: "", slug: "", notifications_enabled: true, monthly_credits: 4, rollover_day: 1, max_credits: 16 });
   const [deleteConfirm, setDeleteConfirm]   = useState(false);
   const [ideaForm, setIdeaForm]           = useState({ title: "", body: "" });
   const [ideaNote]           = useState({});
@@ -320,7 +320,7 @@ export default function App() {
     if (!selected) return;
     getShoots(selected.id).then(d => setShoots(d || [])).catch(() => setShoots([]));
     getIdeas(selected.id).then(d => setIdeas(d || [])).catch(() => setIdeas([]));
-    setEditForm({ name: selected.name || "", since: selected.since || "", email: selected.email || "", phone: selected.phone || "", slug: selected.slug || "", notifications_enabled: selected.notifications_enabled ?? true });
+    setEditForm({ name: selected.name || "", since: selected.since || "", email: selected.email || "", phone: selected.phone || "", slug: selected.slug || "", notifications_enabled: selected.notifications_enabled ?? true, monthly_credits: selected.monthly_credits ?? 4, rollover_day: selected.rollover_day ?? 1, max_credits: selected.max_credits ?? 16 });
     setDeleteConfirm(false);
     setExpandedClientId(null);
   }, [selected?.id]);
@@ -353,9 +353,9 @@ export default function App() {
     if (!newClientForm.name || !newClientForm.since) return;
     if (!newClientForm.slug) { showToast("Portal URL slug is required"); return; }
     try {
-      await addClient(newClientForm.name, newClientForm.since, newClientForm.email, newClientForm.phone, newClientForm.slug);
+      await addClient(newClientForm.name, newClientForm.since, newClientForm.email, newClientForm.phone, newClientForm.slug, newClientForm.monthly_credits, newClientForm.rollover_day, newClientForm.max_credits);
       await loadClients();
-      setNewClientForm({ name: "", since: "", email: "", phone: "", slug: "" });
+      setNewClientForm({ name: "", since: "", email: "", phone: "", slug: "", monthly_credits: 4, rollover_day: 1, max_credits: 16 });
       setAddClientOpen(false);
       showToast("Client added");
     } catch (e) { showToast("Error: " + e.message); }
@@ -380,14 +380,14 @@ export default function App() {
       setDeleteConfirm(false);
       return;
     }
-    setEditForm({ name: client.name || "", since: client.since || "", email: client.email || "", phone: client.phone || "", slug: client.slug || "", notifications_enabled: client.notifications_enabled ?? true });
+    setEditForm({ name: client.name || "", since: client.since || "", email: client.email || "", phone: client.phone || "", slug: client.slug || "", notifications_enabled: client.notifications_enabled ?? true, monthly_credits: client.monthly_credits ?? 4, rollover_day: client.rollover_day ?? 1, max_credits: client.max_credits ?? 16 });
     setDeleteConfirm(false);
     setExpandedClientId(client.id);
   };
 
   const handleEditClient = async (client) => {
     try {
-      await updateClient(client.id, { name: editForm.name, since: editForm.since, email: editForm.email, phone: editForm.phone, slug: editForm.slug, notifications_enabled: editForm.notifications_enabled });
+      await updateClient(client.id, { name: editForm.name, since: editForm.since, email: editForm.email, phone: editForm.phone, slug: editForm.slug, notifications_enabled: editForm.notifications_enabled, monthly_credits: editForm.monthly_credits, rollover_day: editForm.rollover_day, max_credits: editForm.max_credits });
       await loadClients();
       showToast("Client updated");
     } catch (e) { showToast("Error: " + e.message); }
@@ -661,16 +661,28 @@ export default function App() {
                     <label style={lbl}>Email</label>
                     <input style={inputStyle} placeholder="client@example.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
                   </div>
-                  <div style={{ marginBottom: 24 }}>
+                  <div style={{ marginBottom: 18 }}>
                     <label style={lbl}>Phone</label>
                     <input style={inputStyle} placeholder="(555) 000-0000" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
                   </div>
-                  <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
-                    New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 24 }}>
+                    <div>
+                      <label style={lbl}>Credits / Month</label>
+                      <input style={inputStyle} type="number" min="1" max="100" value={newClientForm.monthly_credits} onChange={e => setNewClientForm({ ...newClientForm, monthly_credits: Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <label style={lbl}>Rollover Day</label>
+                      <input style={inputStyle} type="number" min="1" max="28" value={newClientForm.rollover_day} onChange={e => setNewClientForm({ ...newClientForm, rollover_day: Number(e.target.value) })} />
+                      <div style={{ fontSize: 10, color: "#aaa", marginTop: 4 }}>1–28</div>
+                    </div>
+                    <div>
+                      <label style={lbl}>Max Credits</label>
+                      <input style={inputStyle} type="number" min="1" max="200" value={newClientForm.max_credits} onChange={e => setNewClientForm({ ...newClientForm, max_credits: Number(e.target.value) })} />
+                    </div>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={handleAddClient} style={btn}>Add Client</button>
-                    <button onClick={() => { setAddClientOpen(false); setNewClientForm({ name: "", since: "", email: "", phone: "", slug: "" }); }} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0" }}>Cancel</button>
+                    <button onClick={() => { setAddClientOpen(false); setNewClientForm({ name: "", since: "", email: "", phone: "", slug: "", monthly_credits: 4, rollover_day: 1, max_credits: 16 }); }} style={{ ...btn, background: "transparent", color: "#888", border: "1px solid #e2e2e0" }}>Cancel</button>
                   </div>
                 </div>
               )}
@@ -721,9 +733,24 @@ export default function App() {
                           <label style={lbl}>Email</label>
                           <input style={inputStyle} placeholder="client@example.com" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} />
                         </div>
-                        <div style={{ marginBottom: 24 }}>
+                        <div style={{ marginBottom: 18 }}>
                           <label style={lbl}>Phone</label>
                           <input style={inputStyle} placeholder="(555) 000-0000" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 24 }}>
+                          <div>
+                            <label style={lbl}>Credits / Month</label>
+                            <input style={inputStyle} type="number" min="1" max="100" value={editForm.monthly_credits} onChange={e => setEditForm({ ...editForm, monthly_credits: Number(e.target.value) })} />
+                          </div>
+                          <div>
+                            <label style={lbl}>Rollover Day</label>
+                            <input style={inputStyle} type="number" min="1" max="28" value={editForm.rollover_day} onChange={e => setEditForm({ ...editForm, rollover_day: Number(e.target.value) })} />
+                            <div style={{ fontSize: 10, color: "#aaa", marginTop: 4 }}>1–28</div>
+                          </div>
+                          <div>
+                            <label style={lbl}>Max Credits</label>
+                            <input style={inputStyle} type="number" min="1" max="200" value={editForm.max_credits} onChange={e => setEditForm({ ...editForm, max_credits: Number(e.target.value) })} />
+                          </div>
                         </div>
                         <div style={{ marginBottom: 28 }}>
                           <label style={lbl}>Email Notifications</label>
@@ -805,12 +832,24 @@ export default function App() {
                 <label style={lbl}>Email</label>
                 <input style={inputStyle} placeholder="client@example.com" value={newClientForm.email} onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })} />
               </div>
-              <div style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 18 }}>
                 <label style={lbl}>Phone</label>
                 <input style={inputStyle} placeholder="(555) 000-0000" value={newClientForm.phone} onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })} />
               </div>
-              <div style={{ padding: "12px 16px", background: "#fafaf8", border: "1px solid #e2e2e0", borderRadius: 3, marginBottom: 20, fontSize: 12, color: "#888" }}>
-                New client starts with <strong style={{ color: "#1a1a1a" }}>4 credits</strong>.
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 24 }}>
+                <div>
+                  <label style={lbl}>Credits / Month</label>
+                  <input style={inputStyle} type="number" min="1" max="100" value={newClientForm.monthly_credits} onChange={e => setNewClientForm({ ...newClientForm, monthly_credits: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <label style={lbl}>Rollover Day</label>
+                  <input style={inputStyle} type="number" min="1" max="28" value={newClientForm.rollover_day} onChange={e => setNewClientForm({ ...newClientForm, rollover_day: Number(e.target.value) })} />
+                  <div style={{ fontSize: 10, color: "#aaa", marginTop: 4 }}>1–28</div>
+                </div>
+                <div>
+                  <label style={lbl}>Max Credits</label>
+                  <input style={inputStyle} type="number" min="1" max="200" value={newClientForm.max_credits} onChange={e => setNewClientForm({ ...newClientForm, max_credits: Number(e.target.value) })} />
+                </div>
               </div>
               <button onClick={handleAddClient} style={btn}>Add Client</button>
             </div>
@@ -843,12 +882,12 @@ export default function App() {
                               <div key={i} style={{ width: 9, height: 9, borderRadius: 1, background: "rgba(255,255,255,0.5)" }} />
                             ))}
                           </div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 14, fontWeight: 300 }}>4 credits / month · unused roll over</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 14, fontWeight: 300 }}>{selected.monthly_credits ?? 4} credits / month · unused roll over</div>
                         </div>
                         <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "28px 30px" }}>
                           <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 16 }}>Used This Month</div>
                           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 72, fontWeight: 300, lineHeight: 1, color: "#1a1a1a" }}>{thisMonth}</div>
-                          <div style={{ fontSize: 11, color: "#888", marginTop: 16, fontWeight: 300 }}>of 4 monthly credits</div>
+                          <div style={{ fontSize: 11, color: "#888", marginTop: 16, fontWeight: 300 }}>of {selected.monthly_credits ?? 4} monthly credits</div>
                         </div>
                         <div style={{ background: "#fff", border: "1px solid #e2e2e0", borderRadius: 3, padding: "28px 30px" }}>
                           <div style={{ fontSize: 9, fontWeight: 500, letterSpacing: 2.5, textTransform: "uppercase", color: "#888", marginBottom: 16 }}>Total Sessions</div>
